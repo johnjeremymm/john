@@ -1,0 +1,3967 @@
+/* ==========================================================
+   style.css  -  LAHAT NG DESIGN NG "LET'S CONNECT" PAGE
+   Dito ang kulay, laki, spacing, layout at animations.
+   Gabay: hanapin ang number sa taas (1-21) para madaling makita ang section.
+   TIP: lahat ng laki ay nakabase sa --u kaya huwag mag-hardcode ng px maliban sa popups.
+   ========================================================== */
+
+/* ==========================================================
+   1. DESIGN TOKENS (mga pangunahing values)
+   --u   = 1 "design unit". Lahat ng laki (text, buttons, gaps) ay calc(N * var(--u)),
+           kaya sabay-sabay lumalaki/lumiliit ang buong page sa kahit anong screen.
+           Ina-update din ito ng script.js (function size) kaya dapat pareho ang formula.
+   --ink = kulay ng main text   --sub = kulay ng secondary text   --ease = animation curve
+   ========================================================== */
+:root {
+  --u: min(calc(min(100vw, 720px) / 941), calc(100dvh / var(--dh, 2214)));
+  --ease: cubic-bezier(0.22, 1, 0.36, 1);
+  /* bilis ng intro animation: 1 = dati, 0.75 = mas mabilis. Palitan lang ito para i-tune. */
+  --spd: 0.6;
+  /* Smallest --u in two-column landscape (must match the 0.2 / 0.32 floor in size() in script.js). */
+  --umin: 0.2px;
+}
+
+/* Touch screens (phones held sideways): keep text readable and let the page scroll a little instead of shrinking it further */
+@media (pointer: coarse) {
+  :root {
+    --umin: 0.32px;
+  }
+}
+
+/* Landscape na masikip (< 560px ang lapad): isang column pa rin, scale batay sa lapad */
+@media (orientation: landscape) {
+  :root {
+    --u: calc(min(100vw, 720px) / 941);
+  }
+}
+
+/* landscape / desktop window: two columns, so the scale is based on the width of both columns and the height of the tallest one.
+   Width and height are the usable ones (minus iOS safe areas). Same formula as size() in script.js. */
+@media (orientation: landscape) and (min-width: 560px) {
+  :root {
+    --u: min(
+      1px,
+      calc(
+        (
+            100vw - env(safe-area-inset-left, 0px) -
+              env(safe-area-inset-right, 0px)
+          ) /
+          1990
+      ),
+      max(
+        var(--umin),
+        calc(
+          (
+              100dvh - env(safe-area-inset-top, 0px) -
+                env(safe-area-inset-bottom, 0px)
+            ) /
+            1504
+        )
+      )
+    );
+  }
+}
+
+/* ==========================================================
+   2. RESET + PAGE BASE
+   Tinatanggal ang default margin/padding. Dito rin ang background ng buong page.
+   ========================================================== */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* PAGE BACKGROUND: lahat ng kulay ay galing sa theme tokens (section 16). Palitan ang theme sa config.js -> theme. */
+html {
+  height: 100%;
+  -webkit-text-size-adjust: 100%;
+  background:
+    radial-gradient(var(--dot) 1px, transparent 1.2px) 0 0 / 26px 26px,
+    radial-gradient(90% 45% at 50% -8%, var(--g1), transparent 70%),
+    radial-gradient(70% 38% at 100% 100%, var(--g2), transparent 70%),
+    radial-gradient(60% 34% at 0% 100%, var(--g3), transparent 72%),
+    linear-gradient(180deg, var(--bg1) 0%, var(--bg2) 100%) no-repeat;
+  background-color: var(--bg2);
+}
+
+/* iOS FIX: naka-lock ang page (walang drag / rubber-band / zoom). Ang .stage ang nag-i-scroll sa landscape kung masikip. */
+body {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  font-family:
+    "Plus Jakarta Sans",
+    system-ui,
+    -apple-system,
+    "Segoe UI",
+    Roboto,
+    sans-serif;
+  color: var(--ink);
+  overflow: hidden;
+  overscroll-behavior: none;
+  touch-action: manipulation;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+html {
+  overflow: hidden;
+  overscroll-behavior: none;
+  touch-action: manipulation;
+}
+
+/* kailangan para gumana pa rin ang pag-type sa textarea */
+.box textarea {
+  touch-action: manipulation;
+}
+
+button {
+  font-family: inherit;
+}
+
+svg {
+  display: block;
+}
+
+/* ==========================================================
+   3. LAYOUT
+   .stage = ang buong content. Portrait (mobile/tablet): isang column, naka-center sa gitna,
+   at FIXED ang gaps (.sp) kaya pantay ang pagitan sa lahat ng screen size.
+   ========================================================== */
+.stage {
+  width: calc(941 * var(--u));
+  max-width: 100%;
+  height: var(--H, 100dvh);
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 0 calc(30 * var(--u));
+}
+
+@media (orientation: landscape) {
+  .stage {
+    height: 100%;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+    touch-action: pan-y;
+  }
+}
+
+/* ----------------------------------------------------------
+   TWO-COLUMN LAYOUT (landscape / desktop window)
+   KALIWA  = pfp + LET'S CONNECT + name        (.hd)
+   KANAN   = social buttons + Send a Message    (.rc, binubuo ng script.js)
+   ILALIM  = © footer sa buong lapad            (.foot)
+   ---------------------------------------------------------- */
+@media (orientation: landscape) and (min-width: 560px) {
+  .stage {
+    display: grid;
+    /* width and padding: see section 13 (they include the iOS safe areas) */
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-areas: "hd rc" "foot foot";
+    /* row 1 = lahat ng sobrang taas (naka-sentro ang laman), row 2 = footer na nasa pinakababa; kapag masikip, nag-i-scroll nang buo */
+    grid-template-rows: minmax(min-content, 1fr) auto;
+    column-gap: calc(110 * var(--u));
+    row-gap: 0;
+    align-content: stretch;
+    align-items: center;
+  }
+  .stage > .sp {
+    display: none;
+  }
+  .stage > .hd {
+    grid-area: hd;
+  }
+  .stage > .rc {
+    grid-area: rc;
+    display: flex;
+    flex-direction: column;
+    gap: calc(50 * var(--u));
+    width: 100%;
+    min-width: 0;
+  }
+  .hdi > .sp:first-child,
+  .hdi > .sp:last-child {
+    display: none;
+  }
+  .stage > .foot {
+    grid-area: foot;
+    margin-top: calc(96 * var(--u));
+  }
+}
+
+/* .sp = spacer. Ang taas ay galing sa --m sa HTML (style="--m:34"). Dito ang gap ng mga elements */
+.sp {
+  flex: none;
+  height: calc(var(--m, 0) * var(--u));
+}
+
+/* .hd / .hdi = header group (pfp, title, name). Dito ang animation na nagtatago/nagpapalabas ng header */
+.hd {
+  display: grid;
+  grid-template-rows: 1fr;
+  flex: 0 0 auto;
+  width: 100%;
+}
+
+.hdi {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-height: 0;
+  overflow: hidden;
+  /* room inside the clip box so button shadows / glows are not cut into a square; cancelled out by the negative margin */
+  padding: calc(40 * var(--u)) calc(30 * var(--u));
+  margin: calc(-40 * var(--u)) calc(-30 * var(--u));
+}
+
+.stage {
+  transition: transform 0.4s var(--ease);
+}
+
+.stage.typing {
+  will-change: transform;
+}
+
+.full {
+  width: 100%;
+}
+
+.done .in,
+.done .line {
+  animation: none !important;
+  opacity: 1;
+  transform: none;
+}
+
+.done .line {
+  transform: none;
+}
+
+/* ==========================================================
+   4. ENTRANCE ANIMATIONS
+   Pag-load ng page: .in = rise (taas + fade), .pop = pop (lumalaki), .line = grow (guhit).
+   Ang delay ay galing sa style="--d:.5s" sa HTML. Transform + opacity lang para smooth.
+   ========================================================== */
+.in,
+.pop,
+.line {
+  opacity: 0;
+}
+
+.go .in {
+  animation: rise calc(0.85s * var(--spd)) var(--ease) both;
+  animation-delay: calc(var(--d, 0s) * var(--spd));
+}
+
+.go .pop {
+  animation: pop calc(0.9s * var(--spd)) var(--ease) both;
+  animation-delay: calc(var(--d, 0s) * var(--spd));
+}
+
+.go .line {
+  animation: grow calc(0.9s * var(--spd)) var(--ease) both;
+  animation-delay: calc(var(--d, 0s) * var(--spd));
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translate3d(0, calc(var(--u) * 34), 0) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes pop {
+  from {
+    opacity: 0;
+    transform: scale(0.6);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes grow {
+  from {
+    opacity: 0;
+    transform: scaleX(0);
+  }
+  to {
+    opacity: 1;
+    transform: scaleX(1);
+  }
+}
+
+/* ==========================================================
+   5. PROFILE PHOTO (avatar)
+   Bilog na pfp na may gradient ring (.avatar), green online dot (.dot), at hover/click effect.
+   ========================================================== */
+.avatar {
+  position: relative;
+  width: calc(280 * var(--u));
+  height: calc(280 * var(--u));
+  flex: none;
+  border-radius: 50%;
+  padding: calc(9 * var(--u));
+  background: linear-gradient(
+    145deg,
+    var(--a200) 0%,
+    var(--a400) 45%,
+    var(--a600) 100%
+  );
+}
+
+.avatar::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  box-shadow:
+    0 0 calc(55 * var(--u)) rgba(var(--ac), 0.6),
+    0 0 calc(16 * var(--u)) rgba(var(--ac), 0.4);
+  opacity: 0.6;
+}
+
+.go .avatar::before {
+  animation: pulse 4s ease-in-out 1s infinite;
+}
+
+@keyframes pulse {
+  50% {
+    opacity: 1;
+  }
+}
+
+.avatar {
+  cursor: pointer;
+}
+
+.in2 {
+  transition: transform 0.4s var(--ease);
+  position: relative;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  background: #e8ecf4;
+  border: calc(5 * var(--u)) solid var(--avbd);
+  overflow: hidden;
+}
+
+.in2 img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+@media (hover: hover) {
+  .avatar:hover .in2 {
+    transform: scale(1.04);
+  }
+}
+
+.avatar:active .in2 {
+  transform: scale(0.95);
+  transition-duration: 0.12s;
+}
+
+.avatar:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 4px;
+}
+
+/* SOUNDWAVE BADGE (dating green "active" dot): kapareho ng pwesto at laki ng dot (44u, may minimum na 22px para
+   hindi sobrang liit sa phone). Ang canvas sa loob ay ginuguhitan ng script.js (section 17) base sa totoong audio. */
+.dot,
+.pvdot {
+  border-radius: 50%;
+  overflow: hidden;
+  border: max(1.5px, calc(3 * var(--u))) solid rgba(var(--ac), 0.9);
+  background: linear-gradient(145deg, rgb(var(--sa)), rgb(var(--sd)));
+  box-shadow:
+    0 0 calc(16 * var(--u)) rgba(var(--ac), 0.55),
+    0 calc(4 * var(--u)) calc(10 * var(--u)) rgba(0, 0, 0, 0.35);
+  pointer-events: none;
+}
+
+.dot {
+  position: absolute;
+  left: calc(204 * var(--u));
+  top: calc(213 * var(--u));
+  width: max(calc(44 * var(--u)), 22px);
+  height: max(calc(44 * var(--u)), 22px);
+}
+
+.dot canvas,
+.pvdot canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+/* Naka-pause ang walang-katapusang pulse/ping habang may popup o keyboard (class na "pause" ay galing sa script.js).
+   Para hindi mag-agawan sa frames ang mga ito at ang popup/keyboard animation. */
+:root.pause .avatar::before {
+  animation-play-state: paused;
+}
+
+/* ==========================================================
+   6. TITLE + NAME
+   h1 = "LET'S CONNECT". .nm = John Jeremy na may guhit sa magkabilang gilid (.rule).
+   ========================================================== */
+h1 {
+  font-size: calc(104 * var(--u));
+  line-height: 1.12;
+  letter-spacing: calc(-2 * var(--u));
+  white-space: nowrap;
+  text-align: center;
+  color: var(--ink);
+  padding: 0 calc(8 * var(--u));
+  filter: drop-shadow(0 calc(8 * var(--u)) calc(28 * var(--u)) var(--h1sh));
+}
+
+h1 .l {
+  font-weight: 300;
+}
+
+h1 .b {
+  font-weight: 800;
+  background: linear-gradient(
+    100deg,
+    var(--h1a) 0%,
+    var(--h1b) 50%,
+    var(--h1c) 100%
+  );
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  padding-right: 0.05em;
+}
+
+.nrow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.rule.sh {
+  flex: none;
+  width: calc(96 * var(--u));
+}
+
+.nm {
+  font-weight: 700;
+  font-size: max(13px, calc(31 * var(--u)));
+  line-height: 1.1;
+  letter-spacing: calc(10 * var(--u));
+  text-transform: uppercase;
+  color: var(--nm);
+  white-space: nowrap;
+  padding: 0 calc(20 * var(--u)) 0 calc(30 * var(--u));
+}
+
+.rule {
+  flex: 1;
+  height: calc(2 * var(--u));
+  background: linear-gradient(90deg, transparent, rgba(var(--acl), 0.9));
+  transform-origin: left;
+}
+
+.rule.r {
+  background: linear-gradient(270deg, transparent, rgba(var(--acl), 0.9));
+  transform-origin: right;
+}
+
+/* ==========================================================
+   7. PHOTO VIEWER
+   Popup na lumalaki ang pfp pag pinindot. Kontrolado ng script.js (openPV / closePV).
+   ========================================================== */
+.pv {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: none;
+  cursor: pointer;
+  overscroll-behavior: contain;
+  touch-action: none;
+}
+
+.pv.on {
+  display: block;
+}
+
+.pvbg {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(
+    75% 60% at 50% 45%,
+    rgba(var(--ovt), 0.8),
+    rgba(var(--ovd), 0.97) 72%
+  );
+  will-change: opacity;
+}
+
+.pvbox {
+  position: absolute;
+  border-radius: 50%;
+  background: linear-gradient(
+    145deg,
+    var(--a200) 0%,
+    var(--a400) 45%,
+    var(--a600) 100%
+  );
+  box-shadow: 0 0 36px rgba(var(--ac), 0.5);
+  will-change: transform, border-radius;
+  backface-visibility: hidden;
+  transform: translateZ(0);
+}
+
+.pvi {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: #e8ecf4;
+  border-style: solid;
+  border-color: var(--avbd);
+  border-radius: 50%;
+}
+
+.pvi img,
+.pvi svg {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.pvi::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    115deg,
+    transparent 38%,
+    rgba(255, 255, 255, 0.38) 50%,
+    transparent 62%
+  );
+  transform: translateX(-130%);
+  pointer-events: none;
+}
+
+.pv.landed .pvi::after {
+  animation: sweep 1.1s 0.1s var(--ease) both;
+}
+
+@keyframes sweep {
+  to {
+    transform: translateX(130%);
+  }
+}
+
+.pvdot {
+  position: absolute;
+  left: 72.9%;
+  top: 76.1%;
+  width: 15.7%;
+  height: 15.7%;
+  border-width: 2px;
+}
+
+/* MUSIC PLAYER (sa ilalim ng pfp): NOW PLAYING, pamagat, kumanta, soundwave, progress bar. Ang pwesto (top / left / width) ay galing sa script.js (pvLayout). */
+.pvcap {
+  position: absolute;
+  left: 0;
+  right: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  opacity: 0;
+  transform: translate3d(0, 16px, 0);
+  transition:
+    opacity 0.45s var(--ease),
+    transform 0.55s var(--ease);
+  pointer-events: none;
+}
+
+.pvnow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.pvnow span {
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 3px;
+  white-space: nowrap;
+  color: var(--a300);
+}
+
+.pveq {
+  width: 34px;
+  height: 1.5px;
+  background: linear-gradient(90deg, transparent, rgba(var(--acl), 0.9));
+}
+
+.pveq.r {
+  transform: scaleX(-1);
+}
+
+.pvcap b {
+  display: block;
+  max-width: 100%;
+  font-weight: 800;
+  font-size: 24px;
+  line-height: 1.2;
+  letter-spacing: -0.3px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pvcap em {
+  display: block;
+  max-width: 100%;
+  margin-top: 6px;
+  font-style: normal;
+  font-weight: 500;
+  font-size: 14.5px;
+  letter-spacing: 0.2px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pvwave {
+  display: block;
+  width: 100%;
+  height: 64px;
+  margin-top: 22px;
+}
+
+.pvprog {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  margin-top: 16px;
+  font-size: 11.5px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.3px;
+}
+
+.pvtrack {
+  position: relative;
+  flex: 1;
+  height: 4px;
+  border-radius: 99px;
+  background: rgba(255, 255, 255, 0.16);
+  overflow: hidden;
+}
+
+.pvtrack i {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--a400), var(--a200));
+  transform: scaleX(0);
+  transform-origin: left;
+}
+
+.pvcap small {
+  display: block;
+  margin-top: 20px;
+  font-size: 12px;
+  letter-spacing: 0.3px;
+}
+
+.pv.landed .pvcap {
+  opacity: 1;
+  transform: none;
+}
+
+/* ==========================================================
+   8. SOCIAL BUTTONS
+   .stack = listahan ng buttons. .row2 = dalawang button magkatabi (Facebook + Messenger).
+   .btn = bawat button, .ic = icon, .tx = text, .ar = arrow sa kanan.
+   ========================================================== */
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: calc(46 * var(--u));
+  width: 100%;
+}
+
+.row2 {
+  display: flex;
+  gap: calc(30 * var(--u));
+}
+
+.row2 > * {
+  flex: 1;
+  min-width: 0;
+}
+
+.btn {
+  position: relative;
+  isolation: isolate;
+  display: flex;
+  align-items: center;
+  width: 100%;
+  height: calc(122 * var(--u));
+  padding: 0 calc(30 * var(--u));
+  border-radius: calc(70 * var(--u));
+  color: inherit;
+  text-decoration: none;
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+  border: calc(1.8 * var(--u)) solid transparent;
+  background:
+    linear-gradient(
+        135deg,
+        rgba(var(--sa), 0.5),
+        rgba(var(--sb), 0.78) 45%,
+        rgba(var(--sc), 0.8)
+      )
+      padding-box,
+    linear-gradient(
+        120deg,
+        rgba(var(--ac), 0.8),
+        rgba(var(--ac), 0.55) 40%,
+        rgba(var(--ac), 0.38)
+      )
+      border-box;
+  box-shadow: 0 calc(10 * var(--u)) calc(26 * var(--u)) rgba(0, 0, 0, 0.4);
+  transition: transform 0.35s var(--ease);
+}
+
+.btn::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  box-shadow:
+    0 0 calc(34 * var(--u)) rgba(var(--ac), 0.6),
+    inset 0 0 calc(26 * var(--u)) rgba(var(--ac), 0.2);
+  opacity: 0;
+  visibility: hidden;
+  transition:
+    opacity 0.35s var(--ease),
+    visibility 0s 0.35s;
+}
+
+@media (hover: none) {
+  .btn::before {
+    display: none;
+  }
+}
+
+/* ICON COLOR: white ang lahat ng icons. Palitan ang `color` para ibang kulay (hal. #000 para black) */
+.btn .ic {
+  color: #fff;
+}
+
+.ic {
+  width: calc(var(--s, 75) * var(--u));
+  height: calc(var(--s, 75) * var(--u));
+  flex: none;
+  border-radius: 50%;
+  transition: transform 0.4s var(--ease);
+}
+
+.tx {
+  margin-left: calc(var(--tg, 40) * var(--u));
+  line-height: 1.25;
+  min-width: 0;
+  text-align: left;
+}
+
+.tx b {
+  display: block;
+  font-weight: 600;
+  font-size: calc(37 * var(--u));
+  white-space: nowrap;
+}
+
+.tx span {
+  display: block;
+  font-weight: 400;
+  font-size: max(12px, calc(28 * var(--u)));
+  color: var(--sub);
+  margin-top: calc(2 * var(--u));
+  white-space: nowrap;
+}
+
+/* kung sobrang haba ng text sa makitid na phone, may "…" imbes na tumama sa arrow */
+.tx {
+  padding-right: calc(10 * var(--u));
+}
+.tx b,
+.tx span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ar {
+  margin-left: auto;
+  width: calc(32 * var(--u));
+  height: calc(32 * var(--u));
+  flex: none;
+  transition: transform 0.4s var(--ease);
+}
+
+@media (hover: hover) {
+  .btn:hover {
+    transform: translate3d(0, calc(-3 * var(--u)), 0);
+  }
+  .btn:hover::before {
+    opacity: 1;
+    visibility: visible;
+    transition:
+      opacity 0.35s var(--ease),
+      visibility 0s;
+  }
+  .btn:hover .ic {
+    transform: scale(1.07);
+  }
+  .btn:hover .ar {
+    transform: translate3d(calc(4 * var(--u)), calc(-4 * var(--u)), 0);
+  }
+}
+
+.btn:active {
+  transform: scale(0.975);
+  transition-duration: 0.12s;
+}
+
+.btn:focus-visible,
+.sw:focus-visible,
+.send:focus-visible,
+.x:focus-visible,
+.opt:focus-visible,
+.cancel:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 3px;
+}
+
+/* ==========================================================
+   9. SEND A MESSAGE CARD
+   .ch = header, .box = textarea, .cf = baba (switch + send button), .pill = Email/Phone label.
+   ========================================================== */
+.card {
+  position: relative;
+  width: 100%;
+  border-radius: calc(70 * var(--u));
+  padding: calc(52 * var(--u)) calc(50 * var(--u)) calc(58 * var(--u));
+  border: calc(1.8 * var(--u)) solid transparent;
+  background:
+    linear-gradient(
+        160deg,
+        rgba(var(--sa), 0.65),
+        rgba(var(--sb), 0.86) 40%,
+        rgba(var(--sc), 0.9)
+      )
+      padding-box,
+    linear-gradient(
+        140deg,
+        rgba(var(--acl), 0.85),
+        rgba(var(--acd), 0.4) 35%,
+        rgba(var(--acm), 0.6)
+      )
+      border-box;
+  box-shadow: 0 calc(22 * var(--u)) calc(46 * var(--u)) rgba(var(--sh), 0.5);
+}
+
+.ch {
+  display: flex;
+  align-items: center;
+  height: calc(58 * var(--u));
+}
+
+.ch svg {
+  width: calc(58 * var(--u));
+  height: calc(56 * var(--u));
+  margin-left: calc(6 * var(--u));
+}
+
+.ct {
+  font-weight: 600;
+  font-size: calc(37 * var(--u));
+  margin-left: calc(26 * var(--u));
+  white-space: nowrap;
+}
+
+.pill {
+  margin-left: auto;
+  height: calc(54 * var(--u));
+  padding: 0 calc(30 * var(--u));
+  border-radius: 99px;
+  background: linear-gradient(90deg, var(--pg1), var(--pg2));
+  display: flex;
+  align-items: center;
+  font-weight: 600;
+  font-size: max(13px, calc(28 * var(--u)));
+  box-shadow: 0 0 calc(16 * var(--u)) rgba(var(--acd), 0.5);
+}
+
+.box {
+  position: relative;
+  /* own stacking context: the expand button below can never be painted under anything outside the box */
+  isolation: isolate;
+  /* size of the expand/collapse button: scales with the page but never below 30px, so it stays visible and tappable */
+  --xs: max(calc(54 * var(--u)), 30px);
+  margin-top: calc(40 * var(--u));
+  height: calc(158 * var(--u));
+  border-radius: calc(40 * var(--u));
+  border: calc(1.5 * var(--u)) solid rgba(var(--bd), 0.55);
+  background: rgba(var(--sd), 0.72);
+  transition: border-color 0.3s;
+}
+
+@media (hover: hover) {
+  .box:hover {
+    border-color: var(--a400);
+  }
+}
+
+.box textarea {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  outline: 0;
+  resize: none;
+  background: none;
+  color: var(--ink);
+  font: inherit;
+  font-size: max(16px, calc(34 * var(--u)));
+  /* right padding = button width + gap, so typed text never runs under the button */
+  padding: calc(30 * var(--u)) calc(var(--xs) + 32 * var(--u))
+    calc(10 * var(--u)) calc(40 * var(--u));
+  overflow: auto;
+  /* below the button; iOS promotes a scrolling textarea to its own layer, the button gets one too (see .x) */
+  position: relative;
+  z-index: 0;
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+::placeholder {
+  color: var(--muted);
+  opacity: 1;
+}
+
+.x {
+  position: absolute;
+  z-index: 2;
+  right: calc(20 * var(--u));
+  top: calc(20 * var(--u));
+  width: var(--xs);
+  height: var(--xs);
+  background: none;
+  border: 0;
+  color: #fff;
+  cursor: pointer;
+  padding: calc(var(--xs) * 0.185);
+  touch-action: manipulation;
+  /* Safari paints a scrolling textarea on its own compositing layer; a composited, higher z-index button always stays above it */
+  transform: translateZ(0);
+  will-change: transform;
+  transition: transform 0.3s var(--ease);
+}
+
+/* invisible touch area of at least 44px around the button (Apple's minimum), without changing how it looks */
+.x::after {
+  content: "";
+  position: absolute;
+  inset: min(0px, calc((var(--xs) - 44px) / 2));
+}
+
+.x svg {
+  width: 100%;
+  height: 100%;
+}
+
+@media (hover: hover) {
+  .x:hover {
+    transform: translateZ(0) scale(1.15);
+  }
+}
+
+.cf {
+  display: flex;
+  align-items: center;
+  margin-top: calc(44 * var(--u));
+}
+
+.sw {
+  width: calc(78 * var(--u));
+  height: calc(74 * var(--u));
+  flex: none;
+  border-radius: 50%;
+  border: calc(1.4 * var(--u)) solid rgba(var(--bd), 0.55);
+  background: rgba(var(--sa), 0.65);
+  color: #fff;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  transition: transform 0.5s var(--ease);
+}
+
+.sw svg {
+  width: calc(36 * var(--u));
+  height: calc(36 * var(--u));
+}
+
+@media (hover: hover) {
+  .sw:hover {
+    transform: rotate(180deg);
+  }
+}
+
+.sw:active {
+  transform: scale(0.92);
+}
+
+.small {
+  font-size: max(13px, calc(27 * var(--u)));
+  margin-left: calc(26 * var(--u));
+  white-space: nowrap;
+}
+
+.send {
+  position: relative;
+  isolation: isolate;
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: calc(22 * var(--u));
+  width: calc(300 * var(--u));
+  height: calc(76 * var(--u));
+  border-radius: 99px;
+  border: calc(1.8 * var(--u)) solid var(--a300);
+  color: #fff;
+  font-weight: 600;
+  font-size: calc(30 * var(--u));
+  cursor: pointer;
+  background: linear-gradient(90deg, var(--sg1), var(--sg2) 55%, var(--sg3));
+  box-shadow: 0 0 calc(24 * var(--u)) rgba(var(--acm), 0.5);
+  transition:
+    transform 0.35s var(--ease),
+    box-shadow 0.35s var(--ease);
+  will-change: transform;
+}
+
+.send svg {
+  width: calc(44 * var(--u));
+  height: calc(44 * var(--u));
+}
+
+@media (hover: hover) {
+  .send:hover {
+    transform: translate3d(0, calc(-3 * var(--u)), 0);
+    box-shadow: 0 0 calc(36 * var(--u)) rgba(var(--ac), 0.8);
+  }
+}
+
+.send:active {
+  transform: scale(0.96);
+  transition-duration: 0.12s;
+}
+
+.send:disabled {
+  opacity: 0.7;
+  cursor: wait;
+}
+
+.send::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  background: linear-gradient(
+    90deg,
+    var(--ok-d),
+    var(--ok-m) 55%,
+    var(--ok-l2)
+  );
+  opacity: 0;
+  transition: opacity 0.4s var(--ease);
+}
+
+.send.ok::before {
+  opacity: 1;
+}
+
+.send.ok {
+  border-color: var(--ok-l);
+  box-shadow: 0 0 calc(30 * var(--u)) rgba(var(--okrgb), 0.55);
+}
+
+.pill {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  transition:
+    box-shadow 0.4s var(--ease),
+    color 0.4s var(--ease);
+}
+
+.pt {
+  position: relative;
+  z-index: 1;
+  display: block;
+}
+
+/* SMS mode: iisang smooth na crossfade. Ang pill ay may accent gradient (Email); ang ::after ay ang SMS na tint + outline na lumilitaw gamit ang opacity lang.
+   Walang clip-path, walang pagpapalit ng class sa dulo, kaya walang kislap o parihaba. */
+.pill::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  border-radius: inherit;
+  background: var(--smsbg);
+  box-shadow: inset 0 0 0 1.5px rgba(var(--acl), 0.75);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.4s var(--ease);
+}
+.pill.ph::after {
+  opacity: 1;
+}
+.pill.ph {
+  color: var(--chip);
+  box-shadow: 0 0 calc(16 * var(--u)) rgba(var(--acd), 0);
+}
+
+.burst {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+  z-index: 3;
+}
+
+.burst b {
+  position: absolute;
+  left: 0;
+  top: 0;
+  margin: -4px 0 0 -4px;
+}
+
+.sring,
+.cring {
+  position: absolute;
+  pointer-events: none;
+  border-style: solid;
+}
+
+.sring {
+  inset: 0;
+  border-radius: 99px;
+  border-width: 2px;
+  border-color: var(--ok-l);
+}
+
+.cring {
+  inset: -2px;
+  border-radius: calc(70 * var(--u));
+  border-width: 2px;
+}
+
+/* ==========================================================
+   10. FOOTER
+   © line sa ilalim, may guhit sa magkabilang gilid.
+   ========================================================== */
+.foot {
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+
+.foot span {
+  font-size: max(12px, calc(26 * var(--u)));
+  color: var(--muted);
+  white-space: nowrap;
+  padding: 0 calc(26 * var(--u));
+}
+
+/* ==========================================================
+   11. POPUPS + TOAST
+   .ov = dark overlay ng popups. .sheet = puting box sa loob. .toast = maliit na message sa ibaba.
+   ========================================================== */
+.ov {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: rgba(var(--ovd), 0.82);
+  overscroll-behavior: contain;
+}
+
+.ov.on {
+  display: flex;
+  animation: fade 0.25s both;
+}
+
+@keyframes fade {
+  from {
+    opacity: 0;
+  }
+}
+
+.sheet {
+  width: min(100%, 420px);
+  max-height: 100%;
+  overflow: auto;
+  border-radius: 28px;
+  padding: 22px;
+  border: 1px solid rgba(var(--acl), 0.5);
+  background: linear-gradient(160deg, rgb(var(--sheet1)), rgb(var(--sheet2)));
+  box-shadow: 0 30px 80px rgba(var(--sh), 0.45);
+  animation: sheet 0.45s var(--ease) both;
+}
+
+@keyframes sheet {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 26px, 0) scale(0.96);
+  }
+}
+
+.sheet h2 {
+  font-size: 20px;
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+
+.sheet p {
+  font-size: 14px;
+  color: var(--sub);
+  margin-bottom: 14px;
+}
+
+.opt {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  padding: 13px 14px 13px 13px;
+  margin-bottom: 12px;
+  border-radius: 24px;
+  border: 1.5px solid transparent;
+  color: #fff;
+  text-decoration: none;
+  background:
+    radial-gradient(
+        140px 90px at 0 50%,
+        rgba(var(--okrgb), 0.22),
+        transparent 70%
+      )
+      padding-box,
+    linear-gradient(
+        135deg,
+        rgba(var(--sa), 0.55),
+        rgba(var(--sb), 0.9) 55%,
+        rgba(var(--sc), 0.9)
+      )
+      padding-box,
+    linear-gradient(
+        120deg,
+        rgba(var(--ac), 0.8),
+        rgba(var(--ac), 0.55) 40%,
+        rgba(var(--ac), 0.38)
+      )
+      border-box;
+  transition: transform 0.3s var(--ease);
+}
+
+.opt::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(
+    115deg,
+    transparent 40%,
+    rgba(255, 255, 255, 0.11) 50%,
+    transparent 60%
+  );
+  transform: translateX(-120%);
+}
+
+#callov.on .opt::after {
+  animation: osweep 1.1s var(--ease) 0.55s both;
+}
+
+#callov.on #n2::after {
+  animation-delay: 0.7s;
+}
+
+@keyframes osweep {
+  to {
+    transform: translateX(120%);
+  }
+}
+
+.opt .pw {
+  position: relative;
+  width: 48px;
+  height: 48px;
+  flex: none;
+}
+
+.opt .pw::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 2px solid var(--ok);
+  opacity: 0;
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  #callov.on .opt .pw::after {
+    animation: cping 2.4s ease-out 1.1s infinite;
+  }
+  #callov.on #n2 .pw::after {
+    animation-delay: 1.6s;
+  }
+}
+
+@keyframes cping {
+  0% {
+    transform: scale(1);
+    opacity: 0.55;
+  }
+  100% {
+    transform: scale(1.5);
+    opacity: 0;
+  }
+}
+
+.opt .pi {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+}
+
+.opt .nb {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  line-height: 1.2;
+  gap: 3px;
+}
+
+.opt .tg {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 2.2px;
+  text-transform: uppercase;
+  color: var(--lab);
+}
+
+.opt .tg i {
+  font-style: normal;
+  font-size: 10.5px;
+  letter-spacing: 0.5px;
+  color: var(--chip);
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: rgba(var(--ac), 0.26);
+  border: 1px solid rgba(var(--acl), 0.35);
+}
+
+.opt .nn {
+  font-size: clamp(18px, 5.6vw, 22px);
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.opt small {
+  display: block;
+  color: var(--sub);
+  font-weight: 400;
+  font-size: 12px;
+  letter-spacing: 0.2px;
+}
+
+.opt .pa {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  flex: none;
+  margin-left: auto;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  transition:
+    background 0.3s var(--ease),
+    border-color 0.3s var(--ease);
+}
+
+.opt .pa svg {
+  width: 16px;
+  height: 16px;
+  transition: transform 0.35s var(--ease);
+}
+
+@media (hover: hover) {
+  .opt:hover {
+    transform: translate3d(0, -2px, 0);
+  }
+  .opt:hover .pa {
+    background: var(--ok-m);
+    border-color: transparent;
+  }
+  .opt:hover .pa svg {
+    transform: translate3d(2px, -2px, 0);
+  }
+}
+
+.opt:active {
+  transform: scale(0.975);
+  transition-duration: 0.12s;
+}
+
+.opt:active .pa {
+  background: var(--ok-m);
+  border-color: transparent;
+}
+
+#callov .sheet h2,
+#callov .sheet p {
+  text-align: center;
+}
+
+#callov .sheet h2 {
+  font-size: 22px;
+  letter-spacing: -0.2px;
+}
+
+#callov .sheet p {
+  margin-bottom: 18px;
+}
+
+.eb {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.eb span {
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 3px;
+  color: var(--lab);
+  white-space: nowrap;
+}
+
+.eb .rule {
+  height: 1.5px;
+}
+
+.cancel {
+  width: 100%;
+  padding: 13px;
+  margin-top: 4px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--sub);
+  font-weight: 600;
+  font-size: 15px;
+  cursor: pointer;
+  transition:
+    background 0.3s,
+    color 0.3s;
+}
+
+@media (hover: hover) {
+  .cancel:hover {
+    background: rgba(255, 255, 255, 0.09);
+    color: #fff;
+  }
+}
+
+.cancel:active {
+  transform: scale(0.98);
+}
+
+/* call sheet: morphs out of the Call button */
+/* ==========================================================
+   12. CALL POPUP
+   Lumalabas pag pinindot ang "Call now". Ang .opt ay bawat phone number na pwedeng pindutin.
+   ========================================================== */
+#callov {
+  display: flex;
+  visibility: hidden;
+  pointer-events: none;
+  background: none;
+  padding: 16px;
+}
+
+#callov.on {
+  visibility: visible;
+  pointer-events: auto;
+  animation: none;
+}
+
+#callov .sheet {
+  animation: none;
+  box-shadow: none;
+}
+
+.cbg {
+  position: absolute;
+  inset: 0;
+  will-change: opacity;
+  transform: translateZ(0);
+  /* flat na scrim: mura sa GPU kaya smooth ang call popup sa phone */
+  background: rgba(var(--ovd), 0.8);
+}
+
+#callov .sheet {
+  position: relative;
+}
+
+/* GLOW ng call popup: hiwalay na layer. Opacity lang ang ina-animate (mura),
+   hindi na ang box-shadow (mabigat, nire-repaint bawat frame). Pwesto ay galing sa script.js (placeGlow). */
+.sglow {
+  position: absolute;
+  pointer-events: none;
+  border-radius: 28px;
+  box-shadow: 0 30px 80px rgba(var(--sh), 0.45);
+  opacity: 0;
+  transition: opacity 0.32s ease-out;
+}
+
+.sglow.on {
+  opacity: 1;
+}
+
+.bad {
+  border-color: #ff6b8a !important;
+  animation: shake 0.35s;
+}
+
+@keyframes shake {
+  25% {
+    transform: translate3d(-5px, 0, 0);
+  }
+  75% {
+    transform: translate3d(5px, 0, 0);
+  }
+}
+
+/* TOAST: maikling notification (hal. "Message sent") */
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: calc(24px + env(safe-area-inset-bottom));
+  transform: translate3d(-50%, 30px, 0);
+  z-index: 30;
+  padding: 13px 20px;
+  border-radius: 99px;
+  font-size: 14px;
+  font-weight: 600;
+  background: rgb(var(--toast));
+  border: 1px solid var(--a400);
+  box-shadow: 0 10px 40px rgba(var(--sh), 0.5);
+  opacity: 0;
+  pointer-events: none;
+  transition:
+    opacity 0.35s,
+    transform 0.45s var(--ease);
+  max-width: 90vw;
+  text-align: center;
+}
+
+.toast.on {
+  opacity: 1;
+  transform: translate3d(-50%, 0, 0);
+}
+
+/* Reduced motion: dati, ang 0.01s na duration + infinite ay nagiging strobe (pulse/ping ay kumikislap 100x/sec).
+   Ngayon isang beses lang tumatakbo at agad natatapos. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    animation-delay: 0s !important;
+    transition-duration: 0.01ms !important;
+    transition-delay: 0s !important;
+  }
+}
+
+/* ==========================================================
+   13. AYOS MULA SA REVIEW
+   ========================================================== */
+/* failsafe: kung hindi tumakbo ang intro (error sa script), ipakita pa rin ang lahat */
+.failsafe .in,
+.failsafe .pop,
+.failsafe .line {
+  opacity: 1;
+}
+
+/* SAFE AREA: iwas sa notch / rounded corners sa landscape (naka-viewport-fit=cover) */
+.stage {
+  padding-left: max(calc(30 * var(--u)), env(safe-area-inset-left, 0px));
+  padding-right: max(calc(30 * var(--u)), env(safe-area-inset-right, 0px));
+}
+
+@media (orientation: landscape) and (min-width: 560px) {
+  .stage {
+    --pl: max(calc(30 * var(--u)), env(safe-area-inset-left, 0px));
+    --pr: max(calc(30 * var(--u)), env(safe-area-inset-right, 0px));
+    /* 1842u = the designed content width (1902u minus 2 x 30u); notch / home-indicator space is added, not taken out of it */
+    width: calc(1872 * var(--u) + var(--pl) + var(--pr));
+    padding: calc(40 * var(--u)) var(--pr)
+      calc(40 * var(--u) + env(safe-area-inset-bottom, 0px)) var(--pl);
+  }
+}
+
+/* may nakikitang focus ang message box (keyboard users) */
+.box:focus-within {
+  border-color: var(--a400);
+}
+
+/* ==========================================================
+   14. LAG FIX
+   Sariling layer ang header, buttons at footer pagkatapos ng intro, kaya pag lumaki ang message box
+   at gumalaw ang mga katabi, compositor na lang ang kikilos (walang repaint ng malalaking shadow/glow).
+   Habang nagta-type, tinatanggal ang malaking shadow ng card (mura ang repaint ng bawat frame).
+   ========================================================== */
+/* palaging naka-layer (hindi na lang pagkatapos ng intro) para walang flicker pagtapos ng animation */
+.hd,
+.stack,
+.foot {
+  will-change: transform;
+}
+
+.stage.typing .card {
+  box-shadow: none;
+}
+
+/* ==========================================================
+   15. FOOTER SA BABA, TEXT SA MALIIT NA LANDSCAPE, SAVE CONTACT STATE
+   ========================================================== */
+/* Isang column: ang auto margin ang nagsesentro ng laman at nagtutulak ng footer sa pinakababa (ligtas pag overflow) */
+.stage {
+  justify-content: flex-start;
+}
+
+@media not all and (orientation: landscape) and (min-width: 560px) {
+  .stage > .hd {
+    margin-top: auto;
+  }
+  .stage > .foot {
+    margin-top: 0;
+  }
+  .stage > .sp.t1 {
+    margin-bottom: auto;
+  }
+}
+
+/* Two column: nakadikit sa baba ang footer; walang px minimum kaya sabay-sabay lumiliit ang lahat ng text */
+@media (orientation: landscape) and (min-width: 560px) {
+  .stage > .foot {
+    align-self: end;
+  }
+
+  .nm {
+    font-size: calc(31 * var(--u));
+  }
+
+  .foot span {
+    font-size: calc(26 * var(--u));
+  }
+
+  .pill {
+    font-size: calc(28 * var(--u));
+  }
+
+  .small {
+    font-size: calc(27 * var(--u));
+  }
+
+  /* handles, usernames and contact labels under the platform names: this was max(13px, 28u), which made them far larger
+     than the rest of the page on a phone held sideways (28u is only about 9px there) and pushed them out of the buttons */
+  .tx span {
+    font-size: calc(28 * var(--u));
+  }
+}
+
+/* 16px minimum ay para lang sa touch (iOS zoom); sa mouse, sumusunod sa laki ng page */
+@media (pointer: fine) {
+  .box textarea {
+    font-size: calc(34 * var(--u));
+  }
+}
+
+/* walang blur sa popup scrim (mabigat sa GPU) */
+.cbg {
+  background: rgba(var(--ovd), 0.8);
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+
+/* Save contact: habang inihahanda */
+.btn.busy {
+  pointer-events: none;
+  opacity: 0.75;
+}
+
+/* ==========================================================
+   16. THEMES + POLISH
+   16 combinations = 8 kulay x 2 mode (dark / light).
+   config.js -> theme: "navy" | "gold" | "emerald" | "violet" | "rose" | "teal" | "ember" | "slate"
+   Dark / light: pinipili ng bisita gamit ang switch sa page (.tmode, section 19). Ang script sa head ng index.html
+   ang naglalagay ng data-mode sa <html>; ang mga kulay sa ibaba ang sumusunod doon.
+   Pang-preview: idagdag sa URL ang ?theme=gold&mode=light
+   Dark: navy/neutral surfaces + soft text + ISANG accent. Light: tinted na malambot na background + mas malalim na bersyon ng parehong accent (para malinaw ang text).
+   Green ay para sa status/success lang.
+   ========================================================== */
+:root {
+  --ok: #34d399;
+  --ok-l: #6ee7b7;
+  --ok-d: #0f9f6e;
+  --ok-m: #2fc48a;
+  --ok-l2: #5fe0b0;
+  --okrgb: 52, 211, 153;
+  /* kulay ng SMS pill: 18% ng accent sa ibabaw ng surface ng theme (solid, para sa crossfade ng SMS pill) */
+  --smsbg: color-mix(in srgb, rgb(var(--ac)) 18%, rgb(var(--sc)));
+}
+
+/* DARK: Midnight Blue */
+:root,
+:root[data-theme="navy"] {
+  --ink: #eef2fa;
+  --sub: #94a3b8;
+  --muted: #7c8aa5;
+  --bg1: #0b1120;
+  --bg2: #080d19;
+  --g1: rgba(91, 140, 255, 0.26);
+  --g2: rgba(52, 211, 153, 0.1);
+  --g3: rgba(59, 99, 224, 0.2);
+  --dot: rgba(255, 255, 255, 0.045);
+  --ac: 91, 140, 255;
+  --acl: 143, 176, 255;
+  --acm: 74, 120, 240;
+  --acd: 59, 100, 230;
+  --a100: #dce6ff;
+  --a200: #b9cdff;
+  --a300: #8fb0ff;
+  --a400: #5b8cff;
+  --a500: #4a78f0;
+  --a600: #3558d8;
+  --sg1: #2f4fcb;
+  --sg2: #3c62dc;
+  --sg3: #4472e8;
+  --pg1: #2f4fcb;
+  --pg2: #3c62dc;
+  --onacc: #fff;
+  --sa: 34, 48, 84;
+  --sb: 13, 19, 34;
+  --sc: 17, 25, 45;
+  --sd: 8, 12, 24;
+  --sh: 3, 8, 24;
+  --ovd: 4, 7, 15;
+  --ovt: 30, 55, 120;
+  --sheet1: 23, 33, 58;
+  --sheet2: 12, 18, 32;
+  --toast: 18, 26, 43;
+  --bd: 110, 135, 200;
+  --wh: 255, 255, 255;
+  --shd: rgba(2, 6, 18, 0.45);
+  --ic: #e6eeff;
+  --nm: #b4c9ff;
+  --lab: #8fb0ff;
+  --chip: #dce6ff;
+  --h1a: #f4f8ff;
+  --h1b: #b9cdff;
+  --h1c: #7fa3ff;
+  --h1sh: rgba(91, 140, 255, 0.45);
+  --focus: #8fb0ff;
+  --avbd: #0a0f1c;
+}
+
+/* DARK: Graphite Gold */
+:root[data-theme="gold"] {
+  --ink: #f5f1e8;
+  --sub: #a8a29a;
+  --muted: #857f76;
+  --bg1: #131211;
+  --bg2: #0a0a0a;
+  --g1: rgba(212, 165, 70, 0.2);
+  --g2: rgba(212, 165, 70, 0.07);
+  --g3: rgba(120, 90, 40, 0.2);
+  --dot: rgba(255, 255, 255, 0.045);
+  --ac: 212, 165, 70;
+  --acl: 232, 200, 130;
+  --acm: 200, 150, 50;
+  --acd: 168, 120, 30;
+  --a100: #fbf1d8;
+  --a200: #f0d9a0;
+  --a300: #e2bc6a;
+  --a400: #d4a546;
+  --a500: #b9862e;
+  --a600: #8f6420;
+  --sg1: #b9862e;
+  --sg2: #cc9a3a;
+  --sg3: #e2bc6a;
+  --pg1: #b9862e;
+  --pg2: #d4a546;
+  --onacc: #1c1407;
+  --sa: 52, 48, 42;
+  --sb: 20, 19, 17;
+  --sc: 28, 26, 23;
+  --sd: 12, 12, 11;
+  --sh: 0, 0, 0;
+  --ovd: 8, 8, 8;
+  --ovt: 90, 70, 30;
+  --sheet1: 34, 32, 28;
+  --sheet2: 17, 16, 14;
+  --toast: 28, 26, 23;
+  --bd: 160, 140, 100;
+  --wh: 255, 255, 255;
+  --shd: rgba(0, 0, 0, 0.5);
+  --ic: #f5ebd3;
+  --nm: #e2bc6a;
+  --lab: #d4a546;
+  --chip: #f0d9a0;
+  --h1a: #fff8e6;
+  --h1b: #f0d9a0;
+  --h1c: #d4a546;
+  --h1sh: rgba(212, 165, 70, 0.35);
+  --focus: #e2bc6a;
+  --avbd: #0b0b0c;
+}
+
+/* DARK: Forest Emerald */
+:root[data-theme="emerald"] {
+  --ink: #ecf6f1;
+  --sub: #8fa9a0;
+  --muted: #6f8a81;
+  --bg1: #08130f;
+  --bg2: #050b09;
+  --g1: rgba(16, 185, 129, 0.22);
+  --g2: rgba(45, 212, 191, 0.08);
+  --g3: rgba(5, 120, 85, 0.24);
+  --dot: rgba(255, 255, 255, 0.045);
+  --ac: 52, 211, 153;
+  --acl: 110, 231, 183;
+  --acm: 16, 185, 129;
+  --acd: 5, 150, 105;
+  --a100: #d5f5e6;
+  --a200: #a7ebcb;
+  --a300: #6ee7b7;
+  --a400: #34d399;
+  --a500: #10b981;
+  --a600: #059669;
+  --sg1: #046c4e;
+  --sg2: #057a55;
+  --sg3: #08885d;
+  --pg1: #046c4e;
+  --pg2: #08885d;
+  --onacc: #fff;
+  --sa: 22, 52, 42;
+  --sb: 9, 22, 18;
+  --sc: 13, 30, 25;
+  --sd: 5, 13, 10;
+  --sh: 0, 6, 3;
+  --ovd: 3, 9, 7;
+  --ovt: 10, 70, 50;
+  --sheet1: 17, 40, 33;
+  --sheet2: 8, 19, 15;
+  --toast: 13, 30, 25;
+  --bd: 90, 150, 130;
+  --wh: 255, 255, 255;
+  --shd: rgba(0, 6, 3, 0.5);
+  --ic: #e3faf0;
+  --nm: #a7ebcb;
+  --lab: #6ee7b7;
+  --chip: #d5f5e6;
+  --h1a: #f0fff8;
+  --h1b: #a7ebcb;
+  --h1c: #34d399;
+  --h1sh: rgba(52, 211, 153, 0.35);
+  --focus: #6ee7b7;
+  --avbd: #050b09;
+}
+
+/* DARK: Royal Violet */
+:root[data-theme="violet"] {
+  --ink: #f1eefa;
+  --sub: #a59fbf;
+  --muted: #857ea3;
+  --bg1: #0e0b1a;
+  --bg2: #08060f;
+  --g1: rgba(139, 108, 246, 0.24);
+  --g2: rgba(167, 139, 250, 0.08);
+  --g3: rgba(91, 52, 200, 0.22);
+  --dot: rgba(255, 255, 255, 0.045);
+  --ac: 139, 108, 246;
+  --acl: 180, 160, 252;
+  --acm: 124, 92, 240;
+  --acd: 98, 64, 210;
+  --a100: #e4dcff;
+  --a200: #cfc2fd;
+  --a300: #b09cfa;
+  --a400: #8b6cf6;
+  --a500: #7650e6;
+  --a600: #5b38c9;
+  --sg1: #5b38c9;
+  --sg2: #6d49de;
+  --sg3: #7f5af0;
+  --pg1: #5b38c9;
+  --pg2: #6d49de;
+  --onacc: #fff;
+  --sa: 44, 36, 82;
+  --sb: 17, 13, 32;
+  --sc: 24, 18, 46;
+  --sd: 10, 8, 20;
+  --sh: 6, 3, 20;
+  --ovd: 7, 5, 15;
+  --ovt: 60, 35, 130;
+  --sheet1: 30, 24, 56;
+  --sheet2: 14, 10, 26;
+  --toast: 24, 18, 46;
+  --bd: 130, 115, 200;
+  --wh: 255, 255, 255;
+  --shd: rgba(6, 3, 20, 0.5);
+  --ic: #ede8ff;
+  --nm: #cfc2fd;
+  --lab: #b09cfa;
+  --chip: #e4dcff;
+  --h1a: #f8f5ff;
+  --h1b: #cfc2fd;
+  --h1c: #a68df8;
+  --h1sh: rgba(139, 108, 246, 0.4);
+  --focus: #b09cfa;
+  --avbd: #08060f;
+}
+
+/* DARK: Rose Wine */
+:root[data-theme="rose"] {
+  --ink: #f8eff1;
+  --sub: #b39aa2;
+  --muted: #937a82;
+  --bg1: #150a0e;
+  --bg2: #0c0508;
+  --g1: rgba(244, 63, 94, 0.2);
+  --g2: rgba(244, 114, 142, 0.07);
+  --g3: rgba(159, 18, 57, 0.24);
+  --dot: rgba(255, 255, 255, 0.045);
+  --ac: 244, 90, 120;
+  --acl: 253, 164, 184;
+  --acm: 232, 70, 104;
+  --acd: 190, 40, 80;
+  --a100: #ffe0e7;
+  --a200: #fbc0cc;
+  --a300: #f58fa5;
+  --a400: #ee5a7a;
+  --a500: #d63a5e;
+  --a600: #b02244;
+  --sg1: #b02244;
+  --sg2: #c42e52;
+  --sg3: #d63a5e;
+  --pg1: #b02244;
+  --pg2: #d63a5e;
+  --onacc: #fff;
+  --sa: 66, 30, 42;
+  --sb: 24, 11, 16;
+  --sc: 34, 16, 24;
+  --sd: 14, 7, 10;
+  --sh: 18, 2, 8;
+  --ovd: 10, 4, 7;
+  --ovt: 120, 25, 55;
+  --sheet1: 44, 20, 29;
+  --sheet2: 20, 9, 14;
+  --toast: 34, 16, 24;
+  --bd: 180, 120, 140;
+  --wh: 255, 255, 255;
+  --shd: rgba(18, 2, 8, 0.5);
+  --ic: #ffe9ee;
+  --nm: #fbc0cc;
+  --lab: #f58fa5;
+  --chip: #ffe0e7;
+  --h1a: #fff5f7;
+  --h1b: #fbc0cc;
+  --h1c: #f58fa5;
+  --h1sh: rgba(244, 90, 120, 0.38);
+  --focus: #f58fa5;
+  --avbd: #0c0508;
+}
+
+/* DARK: Ocean Teal */
+:root[data-theme="teal"] {
+  --ink: #e9f6f8;
+  --sub: #8daab2;
+  --muted: #6e8c95;
+  --bg1: #07141a;
+  --bg2: #040c10;
+  --g1: rgba(34, 190, 215, 0.2);
+  --g2: rgba(59, 130, 246, 0.07);
+  --g3: rgba(14, 116, 144, 0.26);
+  --dot: rgba(255, 255, 255, 0.045);
+  --ac: 34, 190, 215;
+  --acl: 125, 225, 240;
+  --acm: 20, 170, 200;
+  --acd: 8, 130, 165;
+  --a100: #d3f6fb;
+  --a200: #9ceaf5;
+  --a300: #5fd9ec;
+  --a400: #22bed7;
+  --a500: #0e9cb8;
+  --a600: #0b7a94;
+  --sg1: #09667e;
+  --sg2: #0b7792;
+  --sg3: #0c849f;
+  --pg1: #09667e;
+  --pg2: #0c849f;
+  --onacc: #fff;
+  --sa: 18, 56, 70;
+  --sb: 7, 22, 29;
+  --sc: 11, 32, 41;
+  --sd: 4, 13, 18;
+  --sh: 0, 8, 14;
+  --ovd: 3, 10, 14;
+  --ovt: 8, 70, 90;
+  --sheet1: 14, 40, 51;
+  --sheet2: 7, 18, 24;
+  --toast: 11, 32, 41;
+  --bd: 90, 150, 170;
+  --wh: 255, 255, 255;
+  --shd: rgba(0, 8, 14, 0.5);
+  --ic: #ddf7fb;
+  --nm: #9ceaf5;
+  --lab: #5fd9ec;
+  --chip: #d3f6fb;
+  --h1a: #f0fdff;
+  --h1b: #9ceaf5;
+  --h1c: #5fd9ec;
+  --h1sh: rgba(34, 190, 215, 0.35);
+  --focus: #5fd9ec;
+  --avbd: #040c10;
+}
+
+/* DARK: Ember Orange */
+:root[data-theme="ember"] {
+  --ink: #f7f0eb;
+  --sub: #b3a39a;
+  --muted: #93847b;
+  --bg1: #160d08;
+  --bg2: #0c0705;
+  --g1: rgba(245, 125, 40, 0.2);
+  --g2: rgba(251, 146, 60, 0.07);
+  --g3: rgba(154, 52, 18, 0.24);
+  --dot: rgba(255, 255, 255, 0.045);
+  --ac: 244, 122, 46;
+  --acl: 253, 186, 140;
+  --acm: 234, 100, 30;
+  --acd: 194, 65, 12;
+  --a100: #ffe8d6;
+  --a200: #fdc9a3;
+  --a300: #fb9f62;
+  --a400: #f47a2e;
+  --a500: #d95f16;
+  --a600: #b24a0e;
+  --sg1: #a4420c;
+  --sg2: #ba5010;
+  --sg3: #cc5f18;
+  --pg1: #a4420c;
+  --pg2: #c85a14;
+  --onacc: #fff;
+  --sa: 70, 38, 22;
+  --sb: 26, 14, 9;
+  --sc: 36, 20, 13;
+  --sd: 15, 8, 5;
+  --sh: 20, 6, 0;
+  --ovd: 10, 5, 3;
+  --ovt: 130, 55, 15;
+  --sheet1: 46, 26, 17;
+  --sheet2: 21, 11, 7;
+  --toast: 36, 20, 13;
+  --bd: 190, 130, 95;
+  --wh: 255, 255, 255;
+  --shd: rgba(20, 6, 0, 0.5);
+  --ic: #ffebdd;
+  --nm: #fdc9a3;
+  --lab: #fb9f62;
+  --chip: #ffe8d6;
+  --h1a: #fff6ee;
+  --h1b: #fdc9a3;
+  --h1c: #fb9f62;
+  --h1sh: rgba(244, 122, 46, 0.38);
+  --focus: #fb9f62;
+  --avbd: #0c0705;
+}
+
+/* DARK: Slate Silver */
+:root[data-theme="slate"] {
+  --ink: #eef1f5;
+  --sub: #9aa3b0;
+  --muted: #7b8594;
+  --bg1: #0f1216;
+  --bg2: #090b0e;
+  --g1: rgba(148, 163, 184, 0.16);
+  --g2: rgba(100, 116, 139, 0.07);
+  --g3: rgba(71, 85, 105, 0.24);
+  --dot: rgba(255, 255, 255, 0.045);
+  --ac: 148, 163, 184;
+  --acl: 203, 213, 225;
+  --acm: 120, 135, 158;
+  --acd: 84, 98, 120;
+  --a100: #e8ecf2;
+  --a200: #cbd5e1;
+  --a300: #a9b6c8;
+  --a400: #8c9bb0;
+  --a500: #6b7c94;
+  --a600: #4f5f78;
+  --sg1: #3e4c61;
+  --sg2: #4d5c72;
+  --sg3: #5c6b82;
+  --pg1: #3e4c61;
+  --pg2: #5c6b82;
+  --onacc: #fff;
+  --sa: 40, 46, 58;
+  --sb: 16, 19, 24;
+  --sc: 22, 26, 33;
+  --sd: 10, 12, 16;
+  --sh: 0, 2, 8;
+  --ovd: 6, 8, 11;
+  --ovt: 40, 50, 70;
+  --sheet1: 28, 33, 42;
+  --sheet2: 14, 17, 22;
+  --toast: 22, 26, 33;
+  --bd: 130, 145, 170;
+  --wh: 255, 255, 255;
+  --shd: rgba(0, 2, 8, 0.5);
+  --ic: #e8ecf2;
+  --nm: #cbd5e1;
+  --lab: #a9b6c8;
+  --chip: #e8ecf2;
+  --h1a: #f8fafc;
+  --h1b: #cbd5e1;
+  --h1c: #94a3b8;
+  --h1sh: rgba(148, 163, 184, 0.3);
+  --focus: #a9b6c8;
+  --avbd: #090b0e;
+}
+
+/* LIGHT: Midnight Blue */
+:root[data-theme="navy"][data-mode="light"] {
+  --ink: #0f172a;
+  --sub: #55607a;
+  --muted: #55607a;
+  --bg1: #f6f8fd;
+  --bg2: #e6ecf8;
+  --g1: rgba(79, 107, 234, 0.16);
+  --g2: rgba(140, 163, 248, 0.1);
+  --g3: rgba(59, 84, 208, 0.12);
+  --dot: rgba(15, 23, 42, 0.06);
+  --ac: 79, 107, 234;
+  --acl: 140, 163, 248;
+  --acm: 59, 84, 208;
+  --acd: 43, 63, 168;
+  --a100: #e3eaff;
+  --a200: #bccbff;
+  --a300: #8ca3f8;
+  --a400: #4f6bea;
+  --a500: #3b54d0;
+  --a600: #2b3fa8;
+  --sg1: #2b3fa8;
+  --sg2: #3b54d0;
+  --sg3: #4f6bea;
+  --pg1: #2b3fa8;
+  --pg2: #3b54d0;
+  --onacc: #fff;
+  --sa: 255, 255, 255;
+  --sb: 255, 255, 255;
+  --sc: 245, 248, 254;
+  --sd: 238, 242, 251;
+  --sh: 30, 41, 90;
+  --ovd: 15, 23, 42;
+  --ovt: 43, 63, 168;
+  --sheet1: 255, 255, 255;
+  --sheet2: 245, 248, 254;
+  --toast: 255, 255, 255;
+  --bd: 85, 96, 122;
+  --wh: 15, 23, 42;
+  --shd: rgba(30, 41, 90, 0.14);
+  --ic: #2b3fa8;
+  --nm: #2b3fa8;
+  --lab: #3b54d0;
+  --chip: #2b3fa8;
+  --h1a: #0f172a;
+  --h1b: #2b3fa8;
+  --h1c: #4f6bea;
+  --h1sh: rgba(79, 107, 234, 0.18);
+  --focus: #3b54d0;
+  --avbd: #ffffff;
+}
+
+/* LIGHT: Graphite Gold */
+:root[data-theme="gold"][data-mode="light"] {
+  --ink: #26200f;
+  --sub: #6e6350;
+  --muted: #6e6350;
+  --bg1: #fbf7ec;
+  --bg2: #f0e8d2;
+  --g1: rgba(168, 118, 15, 0.16);
+  --g2: rgba(217, 170, 62, 0.1);
+  --g3: rgba(138, 96, 12, 0.12);
+  --dot: rgba(38, 32, 15, 0.06);
+  --ac: 168, 118, 15;
+  --acl: 217, 170, 62;
+  --acm: 138, 96, 12;
+  --acd: 107, 74, 8;
+  --a100: #fbefcf;
+  --a200: #f0d58f;
+  --a300: #d9aa3e;
+  --a400: #a8760f;
+  --a500: #8a600c;
+  --a600: #6b4a08;
+  --sg1: #6b4a08;
+  --sg2: #8a600c;
+  --sg3: #a8760f;
+  --pg1: #6b4a08;
+  --pg2: #8a600c;
+  --onacc: #fff;
+  --sa: 255, 255, 255;
+  --sb: 255, 255, 255;
+  --sc: 251, 247, 236;
+  --sd: 244, 237, 218;
+  --sh: 80, 56, 10;
+  --ovd: 38, 32, 15;
+  --ovt: 107, 74, 8;
+  --sheet1: 255, 255, 255;
+  --sheet2: 251, 247, 236;
+  --toast: 255, 255, 255;
+  --bd: 110, 99, 80;
+  --wh: 38, 32, 15;
+  --shd: rgba(80, 56, 10, 0.14);
+  --ic: #6b4a08;
+  --nm: #6b4a08;
+  --lab: #8a600c;
+  --chip: #6b4a08;
+  --h1a: #26200f;
+  --h1b: #6b4a08;
+  --h1c: #a8760f;
+  --h1sh: rgba(168, 118, 15, 0.18);
+  --focus: #8a600c;
+  --avbd: #ffffff;
+}
+
+/* LIGHT: Forest Emerald */
+:root[data-theme="emerald"][data-mode="light"] {
+  --ink: #0d2118;
+  --sub: #4d6659;
+  --muted: #4d6659;
+  --bg1: #f2faf6;
+  --bg2: #dff0e7;
+  --g1: rgba(14, 143, 95, 0.16);
+  --g2: rgba(92, 197, 146, 0.1);
+  --g3: rgba(10, 117, 80, 0.12);
+  --dot: rgba(13, 33, 24, 0.06);
+  --ac: 14, 143, 95;
+  --acl: 92, 197, 146;
+  --acm: 10, 117, 80;
+  --acd: 7, 92, 63;
+  --a100: #d8f3e5;
+  --a200: #a6e0c2;
+  --a300: #5cc592;
+  --a400: #0e8f5f;
+  --a500: #0a7550;
+  --a600: #075c3f;
+  --sg1: #075c3f;
+  --sg2: #0a7550;
+  --sg3: #0e8f5f;
+  --pg1: #075c3f;
+  --pg2: #0a7550;
+  --onacc: #fff;
+  --sa: 255, 255, 255;
+  --sb: 255, 255, 255;
+  --sc: 240, 248, 244;
+  --sd: 232, 243, 237;
+  --sh: 8, 60, 40;
+  --ovd: 13, 33, 24;
+  --ovt: 7, 92, 63;
+  --sheet1: 255, 255, 255;
+  --sheet2: 240, 248, 244;
+  --toast: 255, 255, 255;
+  --bd: 77, 102, 89;
+  --wh: 13, 33, 24;
+  --shd: rgba(8, 60, 40, 0.14);
+  --ic: #075c3f;
+  --nm: #075c3f;
+  --lab: #0a7550;
+  --chip: #075c3f;
+  --h1a: #0d2118;
+  --h1b: #075c3f;
+  --h1c: #0e8f5f;
+  --h1sh: rgba(14, 143, 95, 0.18);
+  --focus: #0a7550;
+  --avbd: #ffffff;
+}
+
+/* LIGHT: Royal Violet */
+:root[data-theme="violet"][data-mode="light"] {
+  --ink: #1b1433;
+  --sub: #5e5680;
+  --muted: #5e5680;
+  --bg1: #f8f6fe;
+  --bg2: #ece7fa;
+  --g1: rgba(109, 75, 221, 0.16);
+  --g2: rgba(159, 134, 245, 0.1);
+  --g3: rgba(86, 54, 191, 0.12);
+  --dot: rgba(27, 20, 51, 0.06);
+  --ac: 109, 75, 221;
+  --acl: 159, 134, 245;
+  --acm: 86, 54, 191;
+  --acd: 64, 39, 149;
+  --a100: #e9e3ff;
+  --a200: #c8b9fb;
+  --a300: #9f86f5;
+  --a400: #6d4bdd;
+  --a500: #5636bf;
+  --a600: #402795;
+  --sg1: #402795;
+  --sg2: #5636bf;
+  --sg3: #6d4bdd;
+  --pg1: #402795;
+  --pg2: #5636bf;
+  --onacc: #fff;
+  --sa: 255, 255, 255;
+  --sb: 255, 255, 255;
+  --sc: 246, 243, 253;
+  --sd: 239, 234, 250;
+  --sh: 50, 30, 110;
+  --ovd: 27, 20, 51;
+  --ovt: 64, 39, 149;
+  --sheet1: 255, 255, 255;
+  --sheet2: 246, 243, 253;
+  --toast: 255, 255, 255;
+  --bd: 94, 86, 128;
+  --wh: 27, 20, 51;
+  --shd: rgba(50, 30, 110, 0.14);
+  --ic: #402795;
+  --nm: #402795;
+  --lab: #5636bf;
+  --chip: #402795;
+  --h1a: #1b1433;
+  --h1b: #402795;
+  --h1c: #6d4bdd;
+  --h1sh: rgba(109, 75, 221, 0.18);
+  --focus: #5636bf;
+  --avbd: #ffffff;
+}
+
+/* LIGHT: Rose Wine */
+:root[data-theme="rose"][data-mode="light"] {
+  --ink: #2a1018;
+  --sub: #75525e;
+  --muted: #75525e;
+  --bg1: #fef6f8;
+  --bg2: #f8e4ea;
+  --g1: rgba(206, 47, 91, 0.16);
+  --g2: rgba(238, 127, 155, 0.1);
+  --g3: rgba(169, 31, 70, 0.12);
+  --dot: rgba(42, 16, 24, 0.06);
+  --ac: 206, 47, 91;
+  --acl: 238, 127, 155;
+  --acm: 169, 31, 70;
+  --acd: 130, 22, 52;
+  --a100: #ffe3ea;
+  --a200: #f9b8c8;
+  --a300: #ee7f9b;
+  --a400: #ce2f5b;
+  --a500: #a91f46;
+  --a600: #821634;
+  --sg1: #821634;
+  --sg2: #a91f46;
+  --sg3: #ce2f5b;
+  --pg1: #821634;
+  --pg2: #a91f46;
+  --onacc: #fff;
+  --sa: 255, 255, 255;
+  --sb: 255, 255, 255;
+  --sc: 254, 245, 247;
+  --sd: 250, 236, 240;
+  --sh: 110, 20, 50;
+  --ovd: 42, 16, 24;
+  --ovt: 130, 22, 52;
+  --sheet1: 255, 255, 255;
+  --sheet2: 254, 245, 247;
+  --toast: 255, 255, 255;
+  --bd: 117, 82, 94;
+  --wh: 42, 16, 24;
+  --shd: rgba(110, 20, 50, 0.14);
+  --ic: #821634;
+  --nm: #821634;
+  --lab: #a91f46;
+  --chip: #821634;
+  --h1a: #2a1018;
+  --h1b: #821634;
+  --h1c: #ce2f5b;
+  --h1sh: rgba(206, 47, 91, 0.18);
+  --focus: #a91f46;
+  --avbd: #ffffff;
+}
+
+/* LIGHT: Ocean Teal */
+:root[data-theme="teal"][data-mode="light"] {
+  --ink: #0b2229;
+  --sub: #4a6770;
+  --muted: #4a6770;
+  --bg1: #f1fafc;
+  --bg2: #dceff4;
+  --g1: rgba(12, 128, 155, 0.16);
+  --g2: rgba(79, 189, 212, 0.1);
+  --g3: rgba(9, 104, 129, 0.12);
+  --dot: rgba(11, 34, 41, 0.06);
+  --ac: 12, 128, 155;
+  --acl: 79, 189, 212;
+  --acm: 9, 104, 129;
+  --acd: 7, 79, 99;
+  --a100: #d5f3f8;
+  --a200: #98ddea;
+  --a300: #4fbdd4;
+  --a400: #0c809b;
+  --a500: #096881;
+  --a600: #074f63;
+  --sg1: #074f63;
+  --sg2: #096881;
+  --sg3: #0c809b;
+  --pg1: #074f63;
+  --pg2: #096881;
+  --onacc: #fff;
+  --sa: 255, 255, 255;
+  --sb: 255, 255, 255;
+  --sc: 240, 249, 251;
+  --sd: 231, 243, 247;
+  --sh: 6, 60, 80;
+  --ovd: 11, 34, 41;
+  --ovt: 7, 79, 99;
+  --sheet1: 255, 255, 255;
+  --sheet2: 240, 249, 251;
+  --toast: 255, 255, 255;
+  --bd: 74, 103, 112;
+  --wh: 11, 34, 41;
+  --shd: rgba(6, 60, 80, 0.14);
+  --ic: #074f63;
+  --nm: #074f63;
+  --lab: #096881;
+  --chip: #074f63;
+  --h1a: #0b2229;
+  --h1b: #074f63;
+  --h1c: #0c809b;
+  --h1sh: rgba(12, 128, 155, 0.18);
+  --focus: #096881;
+  --avbd: #ffffff;
+}
+
+/* LIGHT: Ember Orange */
+:root[data-theme="ember"][data-mode="light"] {
+  --ink: #2c150a;
+  --sub: #7a5a48;
+  --muted: #7a5a48;
+  --bg1: #fff7f1;
+  --bg2: #fbe6d6;
+  --g1: rgba(196, 84, 15, 0.16);
+  --g2: rgba(242, 143, 79, 0.1);
+  --g3: rgba(159, 67, 11, 0.12);
+  --dot: rgba(44, 21, 10, 0.06);
+  --ac: 196, 84, 15;
+  --acl: 242, 143, 79;
+  --acm: 159, 67, 11;
+  --acd: 122, 51, 8;
+  --a100: #ffe6d4;
+  --a200: #fbc39a;
+  --a300: #f28f4f;
+  --a400: #c4540f;
+  --a500: #9f430b;
+  --a600: #7a3308;
+  --sg1: #7a3308;
+  --sg2: #9f430b;
+  --sg3: #c4540f;
+  --pg1: #7a3308;
+  --pg2: #9f430b;
+  --onacc: #fff;
+  --sa: 255, 255, 255;
+  --sb: 255, 255, 255;
+  --sc: 255, 246, 239;
+  --sd: 251, 236, 223;
+  --sh: 100, 40, 10;
+  --ovd: 44, 21, 10;
+  --ovt: 122, 51, 8;
+  --sheet1: 255, 255, 255;
+  --sheet2: 255, 246, 239;
+  --toast: 255, 255, 255;
+  --bd: 122, 90, 72;
+  --wh: 44, 21, 10;
+  --shd: rgba(100, 40, 10, 0.14);
+  --ic: #7a3308;
+  --nm: #7a3308;
+  --lab: #9f430b;
+  --chip: #7a3308;
+  --h1a: #2c150a;
+  --h1b: #7a3308;
+  --h1c: #c4540f;
+  --h1sh: rgba(196, 84, 15, 0.18);
+  --focus: #9f430b;
+  --avbd: #ffffff;
+}
+
+/* LIGHT: Slate Silver */
+:root[data-theme="slate"][data-mode="light"] {
+  --ink: #111827;
+  --sub: #4b5563;
+  --muted: #4b5563;
+  --bg1: #f6f7f9;
+  --bg2: #e4e8ee;
+  --g1: rgba(82, 96, 119, 0.16);
+  --g2: rgba(148, 163, 184, 0.1);
+  --g3: rgba(63, 76, 97, 0.12);
+  --dot: rgba(17, 24, 39, 0.06);
+  --ac: 82, 96, 119;
+  --acl: 148, 163, 184;
+  --acm: 63, 76, 97;
+  --acd: 45, 56, 74;
+  --a100: #e5e9f0;
+  --a200: #c3ccd9;
+  --a300: #94a3b8;
+  --a400: #526077;
+  --a500: #3f4c61;
+  --a600: #2d384a;
+  --sg1: #2d384a;
+  --sg2: #3f4c61;
+  --sg3: #526077;
+  --pg1: #2d384a;
+  --pg2: #3f4c61;
+  --onacc: #fff;
+  --sa: 255, 255, 255;
+  --sb: 255, 255, 255;
+  --sc: 245, 246, 248;
+  --sd: 236, 239, 243;
+  --sh: 20, 30, 50;
+  --ovd: 17, 24, 39;
+  --ovt: 45, 56, 74;
+  --sheet1: 255, 255, 255;
+  --sheet2: 245, 246, 248;
+  --toast: 255, 255, 255;
+  --bd: 75, 85, 99;
+  --wh: 17, 24, 39;
+  --shd: rgba(20, 30, 50, 0.14);
+  --ic: #2d384a;
+  --nm: #2d384a;
+  --lab: #3f4c61;
+  --chip: #2d384a;
+  --h1a: #111827;
+  --h1b: #2d384a;
+  --h1c: #526077;
+  --h1sh: rgba(82, 96, 119, 0.18);
+  --focus: #3f4c61;
+  --avbd: #ffffff;
+}
+
+/* manipis na liwanag sa itaas ng glass surfaces para may depth */
+.btn,
+.card {
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.07),
+    0 calc(14 * var(--u)) calc(34 * var(--u)) var(--shd);
+}
+.sheet {
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.07);
+}
+.stage.typing .card {
+  box-shadow: none;
+}
+.send {
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.22),
+    0 calc(10 * var(--u)) calc(26 * var(--u)) rgba(var(--acd), 0.45);
+}
+.send.ok {
+  box-shadow: 0 calc(10 * var(--u)) calc(26 * var(--u)) rgba(var(--okrgb), 0.4);
+}
+.nm {
+  letter-spacing: calc(9 * var(--u));
+}
+.ct {
+  letter-spacing: -0.01em;
+}
+
+/* text / icon colors na sumusunod sa theme (para gumana rin sa light themes) */
+.btn .ic {
+  color: var(--ic);
+}
+.ar,
+.opt .pa svg,
+.ch svg {
+  stroke: var(--ic);
+}
+.ch svg {
+  fill: var(--ic);
+}
+.opt .pi path {
+  fill: var(--ic);
+}
+.opt,
+.x,
+.sw {
+  color: var(--ink);
+}
+.send,
+.pill {
+  color: var(--onacc);
+}
+.send svg {
+  stroke: var(--onacc);
+}
+.opt .pa {
+  background: rgba(var(--wh), 0.07);
+  border-color: rgba(var(--wh), 0.14);
+}
+.cancel {
+  background: rgba(var(--wh), 0.04);
+  border-color: rgba(var(--wh), 0.12);
+}
+@media (hover: hover) {
+  .cancel:hover {
+    background: rgba(var(--wh), 0.09);
+    color: var(--ink);
+  }
+}
+/* photo viewer ay laging madilim na overlay, kaya laging maliwanag ang caption */
+.pvcap {
+  color: #eef2fa;
+}
+.pvcap em,
+.pvcap small,
+.pvprog span {
+  color: #a9b4c8;
+}
+
+/* ==========================================================
+   17. CALL POPUP: mas maliit at mas siksik (lapad at taas)
+   Nasa dulo para ito ang mananaig. Hindi ginagalaw ang animation: sinusukat ng script.js ang totoong laki ng sheet.
+   Compact lang sa phone (makitid) o sa landscape na mababa. Sa tablet / window mode, ang orihinal na laki (420px) ang gamit.
+   ========================================================== */
+@media (max-width: 599px), (max-height: 500px) {
+  .sheet {
+    width: min(82%, 310px);
+    padding: 18px;
+    border-radius: 28px;
+  }
+  #callov .sheet h2 {
+    font-size: 19px;
+  }
+  #callov .sheet p {
+    font-size: 13px;
+    margin-bottom: 14px;
+  }
+  .eb {
+    margin-bottom: 10px;
+  }
+  .opt {
+    gap: 10px;
+    padding: 8px 10px 8px 9px;
+    margin-bottom: 9px;
+    border-radius: 20px;
+  }
+  .opt .pw {
+    width: 34px;
+    height: 34px;
+  }
+  .opt .nb {
+    gap: 2px;
+  }
+  .opt .nn {
+    font-size: clamp(14px, 4.3vw, 17px);
+    letter-spacing: 0.3px;
+  }
+  .opt .tg {
+    gap: 5px;
+    letter-spacing: 1.6px;
+  }
+  .opt .tg,
+  .opt .tg i {
+    font-size: 9px;
+  }
+  .opt .tg i {
+    padding: 1px 6px;
+  }
+  .opt small {
+    font-size: 10.5px;
+  }
+  .opt .pa {
+    width: 28px;
+    height: 28px;
+  }
+  .opt .pa svg {
+    width: 13px;
+    height: 13px;
+  }
+  .cancel {
+    padding: 11px;
+    font-size: 14px;
+  }
+  .sglow {
+    border-radius: 28px;
+  }
+}
+/* ==========================================================
+   18. CALL POPUP SA TABLET (600px pataas ang lapad, hindi mababang landscape)
+   Mas malaki ang popup at ang mga number options para madaling basahin at pindutin.
+   Nasa dulo para ito ang mananaig. Para palakihin pa o paliitin: palitan ang width at ang mga font-size sa ibaba.
+   ========================================================== */
+@media (min-width: 600px) and (min-height: 501px) {
+  .sheet {
+    width: min(90%, 580px);
+    padding: 30px;
+    border-radius: 36px;
+  }
+  .sglow {
+    border-radius: 36px;
+  }
+  #callov .sheet h2 {
+    font-size: 30px;
+  }
+  #callov .sheet p {
+    font-size: 18px;
+    margin-bottom: 22px;
+  }
+  .eb {
+    margin-bottom: 16px;
+  }
+  .eb span {
+    font-size: 13px;
+  }
+  .opt {
+    gap: 18px;
+    padding: 18px 20px 18px 18px;
+    margin-bottom: 16px;
+    border-radius: 32px;
+  }
+  .opt .pw {
+    width: 68px;
+    height: 68px;
+  }
+  .opt .nb {
+    gap: 5px;
+  }
+  .opt .nn {
+    font-size: 30px;
+    letter-spacing: 0.6px;
+  }
+  .opt .tg {
+    gap: 8px;
+    letter-spacing: 2.6px;
+  }
+  .opt .tg,
+  .opt .tg i {
+    font-size: 13px;
+  }
+  .opt .tg i {
+    padding: 2px 9px;
+  }
+  .opt small {
+    font-size: 15px;
+  }
+  .opt .pa {
+    width: 48px;
+    height: 48px;
+  }
+  .opt .pa svg {
+    width: 22px;
+    height: 22px;
+  }
+  .cancel {
+    padding: 18px;
+    font-size: 19px;
+  }
+}
+/* Bawal i-drag ang pfp, icons at links papunta sa tab bar / desktop */
+img,
+svg,
+a,
+button {
+  -webkit-user-drag: none;
+  user-drag: none;
+}
+
+/* ==========================================================
+   19. BIO (role + location chips at bio na pangungusap)
+   Nasa ilalim ng pangalan. Laman ay galing sa config.js -> role, location, bio.
+   ========================================================== */
+.bio {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+}
+.bio[hidden] {
+  display: none;
+}
+.bmeta {
+  display: flex;
+  justify-content: center;
+  gap: calc(16 * var(--u));
+  max-width: 100%;
+}
+.bmeta[hidden],
+.btx[hidden],
+.chip[hidden] {
+  display: none;
+}
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: calc(12 * var(--u));
+  height: calc(54 * var(--u));
+  padding: 0 calc(26 * var(--u)) 0 calc(20 * var(--u));
+  border-radius: 99px;
+  font-weight: 600;
+  font-size: max(12px, calc(26 * var(--u)));
+  line-height: 1;
+  letter-spacing: 0.01em;
+  color: var(--chip);
+  white-space: nowrap;
+  min-width: 0;
+  border: calc(1.5 * var(--u)) solid rgba(var(--ac), 0.42);
+  background: linear-gradient(
+    135deg,
+    rgba(var(--sa), 0.55),
+    rgba(var(--sc), 0.85)
+  );
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+.chip svg {
+  width: calc(28 * var(--u));
+  height: calc(28 * var(--u));
+  min-width: 14px;
+  min-height: 14px;
+  flex: none;
+  color: var(--lab);
+}
+.chip span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.btx {
+  max-width: calc(780 * var(--u));
+  text-align: center;
+  font-weight: 400;
+  font-size: max(13px, calc(32 * var(--u)));
+  line-height: 1.55;
+  color: color-mix(in srgb, var(--ink) 74%, var(--sub));
+  text-wrap: balance;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+  overflow: hidden;
+}
+@media (orientation: landscape) and (min-width: 560px) {
+  .chip {
+    font-size: calc(26 * var(--u));
+  }
+  .btx {
+    font-size: calc(32 * var(--u));
+  }
+}
+
+/* ==========================================================
+   20. DARK / LIGHT SWITCH (.tmode)
+   Bilog na button sa itaas ng page. Ang icon ay sun <-> moon morph: sa dark ay buwan (ang itim na bilog sa .tm-cut ay
+   pumapasok at ginagawang crescent ang .tm-core), sa light ay araw (lumalabas ang .tm-rays). Ang pag-switch ng buong
+   page ay circular reveal (View Transitions) mula sa button; kung hindi suportado, fade (.tswap).
+   ========================================================== */
+/* TOP BAR: share (maliit) + dark/light switch (mas malaki). Fixed sa itaas, HINDI nawawala kapag nagta-type.
+   Lumalabas pagkatapos ng intro (.on), itinatago lang kapag may popup (.modal). */
+.tbar {
+  --ts: clamp(58px, calc(118 * var(--u)), 74px);
+  --ss: clamp(44px, calc(88 * var(--u)), 54px);
+  position: fixed;
+  z-index: 12;
+  top: calc(
+    env(safe-area-inset-top, 0px) + clamp(14px, calc(34 * var(--u)), 30px)
+  );
+  right: calc(
+    env(safe-area-inset-right, 0px) + clamp(16px, calc(38 * var(--u)), 32px)
+  );
+  /* patayo: dark/light switch sa taas, share sa ilalim nito. Nasa gilid ng screen kaya hindi tumatama sa pfp */
+  display: flex;
+  flex-direction: column-reverse;
+  align-items: center;
+  gap: clamp(10px, calc(22 * var(--u)), 16px);
+  opacity: 0;
+  transform: scale(0.8);
+  pointer-events: none;
+  transition:
+    opacity 0.5s var(--ease),
+    transform 0.5s var(--ease);
+}
+.tbar.on,
+.failsafe .tbar {
+  opacity: 1;
+  transform: none;
+  pointer-events: auto;
+}
+:root.modal .tbar.on {
+  opacity: 0;
+  transform: scale(0.85);
+  pointer-events: none;
+}
+.tmode,
+.tshare {
+  display: grid;
+  place-items: center;
+  flex: none;
+  padding: 0;
+  border-radius: 50%;
+  border: 1.5px solid rgba(var(--ac), 0.5);
+  background: linear-gradient(
+    135deg,
+    rgba(var(--sa), 0.9),
+    rgba(var(--sc), 0.95)
+  );
+  color: var(--ic);
+  cursor: pointer;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    0 8px 22px var(--shd);
+  transition:
+    transform 0.35s var(--ease),
+    border-color 0.4s,
+    box-shadow 0.4s;
+}
+.tmode {
+  width: var(--ts);
+  height: var(--ts);
+}
+.tshare {
+  width: var(--ss);
+  height: var(--ss);
+}
+.tmode:focus-visible,
+.tshare:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 3px;
+}
+@media (hover: hover) {
+  .tmode:hover,
+  .tshare:hover {
+    transform: scale(1.08);
+    border-color: var(--a300);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.08),
+      0 0 22px rgba(var(--ac), 0.45);
+  }
+}
+.tmode:active,
+.tshare:active {
+  transform: scale(0.9);
+  transition-duration: 0.12s;
+}
+.tmode svg {
+  width: 66%;
+  height: 66%;
+  overflow: visible;
+  transition: transform 0.7s var(--ease);
+}
+.tshare svg {
+  width: 50%;
+  height: 50%;
+}
+.tm-core,
+.tm-rays {
+  transform-origin: 12px 12px;
+  transition:
+    transform 0.7s var(--ease),
+    opacity 0.45s ease;
+}
+.tm-cut {
+  transition: transform 0.7s var(--ease);
+}
+/* LIGHT = araw */
+:root[data-mode="light"] .tm-cut {
+  transform: translate(16px, -16px);
+}
+/* umiikot ang icon habang nagpapalit (araw -> buwan: paikot na parang pumapasok ang crescent) */
+:root[data-mode="light"] .tmode svg {
+  transform: rotate(90deg);
+}
+/* DARK = buwan (ang crescent ay nakaharap pataas-kanan, parang 🌙) */
+:root[data-mode="dark"] .tm-core {
+  transform: scale(1.75);
+}
+:root[data-mode="dark"] .tm-rays {
+  opacity: 0;
+  transform: rotate(-80deg) scale(0.4);
+}
+:root[data-mode="dark"] .tmode svg {
+  transform: rotate(0deg);
+}
+/* sa two-column landscape, nasa kaliwang itaas (para hindi matakpan ang unang button sa kanan) */
+@media (orientation: landscape) and (min-width: 560px) {
+  .tbar {
+    right: auto;
+    left: calc(
+      env(safe-area-inset-left, 0px) + clamp(16px, calc(38 * var(--u)), 32px)
+    );
+  }
+}
+/* circular reveal ng buong page (View Transitions API). Ang animation mismo ay nasa script.js */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation: none;
+  mix-blend-mode: normal;
+}
+::view-transition-old(root) {
+  z-index: 1;
+}
+::view-transition-new(root) {
+  z-index: 9999;
+}
+/* fallback kung walang View Transitions: malambot na palitan ng mga kulay */
+:root.tswap *,
+:root.tswap *::before,
+:root.tswap *::after {
+  transition:
+    background-color 0.45s ease,
+    border-color 0.45s ease,
+    color 0.45s ease,
+    fill 0.45s ease,
+    stroke 0.45s ease,
+    box-shadow 0.45s ease,
+    opacity 0.45s ease;
+}
+
+/* ==========================================================
+   21. SHARE SHEET (QR code + share link)
+   Bubukas pag pinindot ang share icon sa itaas. Ang QR ay iginuguhit ng script.js (section 17) bilang SVG.
+   ========================================================== */
+.shsheet {
+  text-align: center;
+}
+.shsheet h2 {
+  font-size: 22px;
+  letter-spacing: -0.2px;
+}
+.shsheet p {
+  margin-bottom: 18px;
+}
+.qrw {
+  width: min(100%, 236px);
+  aspect-ratio: 1;
+  margin: 0 auto 14px;
+  padding: 0;
+  overflow: hidden;
+  border-radius: 18px;
+  background: #fff;
+  box-shadow:
+    0 0 0 1.5px rgba(var(--ac), 0.55),
+    0 10px 28px rgba(0, 0, 0, 0.3);
+}
+.qrw svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+.shurl {
+  margin: 0 auto 18px;
+  max-width: 100%;
+  font-size: 12.5px;
+  font-weight: 500;
+  letter-spacing: 0.2px;
+  color: var(--sub);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.shbtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  height: 50px;
+  margin-bottom: 10px;
+  border-radius: 999px;
+  border: 1.5px solid var(--a300);
+  background: linear-gradient(90deg, var(--sg1), var(--sg2) 55%, var(--sg3));
+  color: var(--onacc);
+  font-weight: 700;
+  font-size: 15.5px;
+  cursor: pointer;
+  box-shadow: 0 0 18px rgba(var(--acm), 0.4);
+  transition: transform 0.3s var(--ease);
+}
+.shbtn svg {
+  width: 19px;
+  height: 19px;
+}
+.shbtn.alt {
+  border-color: rgba(var(--ac), 0.5);
+  background: rgba(var(--wh), 0.05);
+  color: var(--ink);
+  box-shadow: none;
+}
+.shbtn:active {
+  transform: scale(0.97);
+}
+.shbtn:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 3px;
+}
+@media (hover: hover) {
+  .shbtn:hover {
+    transform: translate3d(0, -2px, 0);
+  }
+}
+
+/* [hidden] ay dapat mananaig kahit may display sa mga rule sa taas */
+.pvcap em[hidden],
+.qrw[hidden],
+.shbtn[hidden] {
+  display: none;
+}
+/* ==========================================================
+   22. AYOS: TOP BAR, PFP CUTOUT, MUSIC PLAYER, BALANSE NG TEXT
+   Nasa dulo para ito ang mananaig.
+   ========================================================== */
+
+/* TOP BAR: pareho na ang laki ng share at dark/light, at mas maliit */
+.tbar {
+  --ts: clamp(36px, calc(74 * var(--u)), 44px);
+  --ss: var(--ts);
+  gap: clamp(8px, calc(16 * var(--u)), 12px);
+}
+.tmode svg {
+  width: 60%;
+  height: 60%;
+}
+.tshare svg {
+  width: 54%;
+  height: 54%;
+}
+
+/* PFP: may "uwang" (cutout) kung nasaan ang audio badge. Ang butas ay talagang wala ang pfp doon, kaya
+   kita ang background ng page (dark man o light). Ang glow at ang ring ay nasa loob ng .avg para sabay ding naka-mask. */
+.avatar {
+  --dotd: max(calc(44 * var(--u)), 22px);
+  --gap: max(calc(9 * var(--u)), 3.5px);
+  --cr: calc(var(--dotd) / 2 + var(--gap));
+  background: none;
+  padding: 0;
+}
+.avatar::before,
+.go .avatar::before {
+  content: none;
+  animation: none;
+}
+.avg {
+  position: absolute;
+  inset: calc(-70 * var(--u));
+  isolation: isolate;
+  pointer-events: none;
+  --cx: calc(296 * var(--u));
+  --cy: calc(305 * var(--u));
+  -webkit-mask-image: radial-gradient(
+    circle at var(--cx) var(--cy),
+    transparent var(--cr),
+    #000 calc(var(--cr) + 1px)
+  );
+  mask-image: radial-gradient(
+    circle at var(--cx) var(--cy),
+    transparent var(--cr),
+    #000 calc(var(--cr) + 1px)
+  );
+}
+.avg::before {
+  content: "";
+  position: absolute;
+  inset: calc(70 * var(--u));
+  z-index: -2;
+  border-radius: 50%;
+  box-shadow:
+    0 0 calc(55 * var(--u)) rgba(var(--ac), 0.6),
+    0 0 calc(16 * var(--u)) rgba(var(--ac), 0.4);
+  opacity: 0.6;
+}
+.go .avg::before {
+  animation: pulse 4s ease-in-out 1s infinite;
+}
+:root.pause .avg::before {
+  animation-play-state: paused;
+}
+.avg::after {
+  content: "";
+  position: absolute;
+  inset: calc(70 * var(--u));
+  z-index: -1;
+  border-radius: 50%;
+  background: linear-gradient(
+    145deg,
+    var(--a200) 0%,
+    var(--a400) 45%,
+    var(--a600) 100%
+  );
+  pointer-events: auto;
+}
+.avg .in2,
+.in2 {
+  position: absolute;
+  inset: calc(79 * var(--u));
+  width: auto;
+  height: auto;
+  z-index: 1;
+  pointer-events: auto;
+}
+.dot {
+  left: calc(226 * var(--u) - var(--dotd) / 2);
+  top: calc(235 * var(--u) - var(--dotd) / 2);
+  width: var(--dotd);
+  height: var(--dotd);
+}
+
+/* MUSIC PLAYER (photo viewer): walang NOW PLAYING at progress bar. Title, artist, soundwave, mute button.
+   Bawat bahagi ay pumapasok isa-isa (stagger) pagkalapag ng photo. */
+.pvcap {
+  opacity: 1;
+  transform: none;
+  transition: none;
+}
+.pvcap > * {
+  opacity: 0;
+  transform: translate3d(0, 22px, 0) scale(0.94);
+  transition:
+    opacity 0.2s ease,
+    transform 0.3s ease;
+}
+.pv.landed .pvcap > * {
+  opacity: 1;
+  transform: none;
+  transition:
+    opacity 0.55s var(--ease) calc(var(--i, 0) * 75ms + 80ms),
+    transform 0.85s var(--ease) calc(var(--i, 0) * 75ms + 80ms);
+}
+.pvcap em {
+  margin-top: 5px;
+}
+.pvwave {
+  height: 72px;
+  margin-top: 20px;
+}
+.pvcap small {
+  margin-top: 18px;
+}
+.pvmute {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  height: 46px;
+  margin-top: 20px;
+  padding: 0 24px 0 18px;
+  border-radius: 99px;
+  border: 1.5px solid rgba(var(--acl), 0.55);
+  background: rgba(255, 255, 255, 0.06);
+  color: #eef2fa;
+  font: inherit;
+  font-weight: 600;
+  font-size: 14px;
+  letter-spacing: 0.2px;
+  cursor: pointer;
+  pointer-events: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+.pv.landed .pvcap > .pvmute {
+  pointer-events: auto;
+  transition:
+    opacity 0.55s var(--ease) calc(var(--i, 0) * 75ms + 80ms),
+    transform 0.85s var(--ease) calc(var(--i, 0) * 75ms + 80ms),
+    background 0.25s ease 0s,
+    border-color 0.25s ease 0s,
+    color 0.25s ease 0s;
+}
+.pvmute[hidden] {
+  display: none;
+}
+.pvmute svg {
+  width: 22px;
+  height: 22px;
+  flex: none;
+  transition: transform 0.3s var(--ease);
+}
+.pvmute .pm-off {
+  display: none;
+}
+.pvmute.off .pm-on {
+  display: none;
+}
+.pvmute.off .pm-off {
+  display: block;
+}
+.pvmute.off {
+  border-color: rgba(255, 255, 255, 0.22);
+  color: #a9b4c8;
+}
+@media (hover: hover) {
+  .pvmute:hover {
+    background: rgba(255, 255, 255, 0.12);
+  }
+}
+.pvmute:active {
+  background: rgba(255, 255, 255, 0.16);
+}
+.pvmute:active svg {
+  transform: scale(0.82);
+}
+.pvmute:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 3px;
+}
+
+/* BALANSE NG TEXT: iisang scale para hindi malaki ang iba at maliit ang iba.
+   t1 = pangunahing label (Facebook, Call now, Send a Message), t2 = pangalawang text (handles, pill, switch, send), t3 = chips + footer.
+   Sa two-column landscape, walang px minimum para sabay-sabay lumiliit. */
+:root {
+  --t1: max(15px, calc(37 * var(--u)));
+  --t2: max(12.5px, calc(28 * var(--u)));
+  --t3: max(12px, calc(26 * var(--u)));
+}
+@media (orientation: landscape) and (min-width: 560px) {
+  :root {
+    --t1: calc(37 * var(--u));
+    --t2: calc(28 * var(--u));
+    --t3: calc(26 * var(--u));
+  }
+}
+.tx b,
+.ct {
+  font-size: var(--t1);
+}
+.tx span,
+.pill,
+.small {
+  font-size: var(--t2);
+}
+.send {
+  font-size: calc(var(--t2) * 1.06);
+}
+.chip,
+.foot span {
+  font-size: var(--t3);
+}
+
+/* PANTAY NA TEXT: iisang slot ng icon (72u) at iisang gap (30u) sa lahat ng buttons,
+   kaya pareho ang simula ng text sa Call now, Save contact at social buttons */
+.btn .ic {
+  --s: 72;
+}
+
+/* ==========================================================
+   23. AYOS: FLICKER, TOP BAR, TUNAY NA CUTOUT SA PFP
+   Nasa dulo para ito ang mananaig.
+   ========================================================== */
+
+/* TOP BAR: opacity lang ang papasok (walang scale), kaya hindi gumagalaw o lumalaki ang mga icon pagka-load */
+.tbar,
+.tbar.on,
+.failsafe .tbar,
+:root.modal .tbar.on {
+  transform: none;
+  transition: opacity 0.5s var(--ease);
+  will-change: opacity;
+}
+
+/* Sariling layer na ang mga ito palagi, kaya walang pagpapalit ng layer (at pag-redraw ng text/icon) pagkatapos ng animation */
+.tmode,
+.tshare,
+.tmode svg,
+.pill,
+.pt,
+#swl,
+#sendt,
+#sico,
+.sw {
+  will-change: transform, opacity;
+}
+
+/* PILL (Email / SMS): iisang lapad para hindi tumalon ang text kapag nagpalit */
+.pill {
+  min-width: calc(var(--t2) * 5.6);
+  justify-content: center;
+}
+
+/* PFP CUTOUT: ang butas ay lumalaki kasabay ng paglabas ng badge (hindi biglang lumilitaw).
+   Walang glow o anino sa paligid ng badge, kaya ang nakikita sa gap ay ang totoong background ng page. */
+@property --hole {
+  syntax: "<length>";
+  inherits: true;
+  initial-value: 0px;
+}
+.avatar {
+  --gap: max(calc(13 * var(--u)), 4.5px);
+  will-change: transform;
+}
+.avg {
+  --hole: 0px;
+  -webkit-mask-image: radial-gradient(
+    circle at var(--cx) var(--cy),
+    transparent calc(var(--hole) - 1px),
+    #000 var(--hole)
+  );
+  mask-image: radial-gradient(
+    circle at var(--cx) var(--cy),
+    transparent calc(var(--hole) - 1px),
+    #000 var(--hole)
+  );
+}
+.go .avg {
+  animation: holein 0.65s var(--ease) 0.62s both;
+}
+.go .dot {
+  animation: dotin 0.6s var(--ease) 0.66s both;
+}
+.failsafe .avg {
+  --hole: var(--cr);
+}
+@keyframes holein {
+  from {
+    --hole: 0px;
+  }
+  to {
+    --hole: var(--cr);
+  }
+}
+@keyframes dotin {
+  from {
+    opacity: 0;
+    transform: scale(0);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.dot,
+.pvdot {
+  background: linear-gradient(145deg, var(--a400), var(--a600));
+  border: max(1px, calc(1.5 * var(--u))) solid rgba(255, 255, 255, 0.3);
+  box-shadow: none;
+}
+/* ==========================================================
+   24. AYOS: LAPAD SA MOBILE, SEND A MESSAGE CARD, PILL, SHARE SHEET
+   Nasa dulo para ito ang mananaig.
+   ========================================================== */
+
+/* Portrait: mas malapad ng kaunti ang stage para hindi sobrang laki ng espasyo sa gilid (lalo na sa 375x667) */
+@media (orientation: portrait) {
+  .stage {
+    width: min(100%, calc(941 * var(--u) + 56px));
+  }
+  /* Email / SMS pill: mas mataas, mas maikli ang lapad */
+  .pill {
+    height: max(27px, calc(66 * var(--u)));
+    min-width: calc(var(--t2) * 4.4);
+    padding: 0 calc(26 * var(--u));
+  }
+}
+
+/* Send a Message: mas malaki (dapat tugma ang taas ng .box sa baseH() sa script.js = 184) */
+.card {
+  padding: calc(56 * var(--u)) calc(50 * var(--u)) calc(62 * var(--u));
+}
+.ch {
+  height: calc(62 * var(--u));
+}
+.box {
+  margin-top: calc(42 * var(--u));
+  height: calc(184 * var(--u));
+}
+.cf {
+  margin-top: calc(48 * var(--u));
+}
+.sw {
+  width: calc(84 * var(--u));
+  height: calc(84 * var(--u));
+}
+.send {
+  width: calc(330 * var(--u));
+  height: calc(88 * var(--u));
+}
+/* "Your Message..." mas maliit; ang tina-type ay nananatiling 16px (iwas zoom sa iOS) */
+.box textarea::placeholder {
+  font-size: max(11px, calc(27 * var(--u)));
+}
+
+/* SHARE SHEET: lumalabas mula sa share button (kapareho ng call popup / pfp) */
+#shareov {
+  background: none;
+}
+#shareov.on {
+  animation: none;
+}
+#shareov .sheet {
+  position: relative;
+  animation: none;
+}
+.qrw {
+  margin-bottom: 18px;
+}
+
+/* ==========================================================
+   25. AYOS: MAS MALAPAD / MATAAS NA PLATFORMS, MALALAKING ICON SA SEND, SOUNDWAVE
+   Nasa dulo para ito ang mananaig.
+   ========================================================== */
+@media (orientation: portrait) {
+  .stage {
+    width: min(100%, calc(941 * var(--u) + 72px));
+    padding-left: max(calc(28 * var(--u)), env(safe-area-inset-left, 0px));
+    padding-right: max(calc(28 * var(--u)), env(safe-area-inset-right, 0px));
+  }
+  .stack {
+    gap: calc(42 * var(--u));
+  }
+  .btn {
+    height: calc(138 * var(--u));
+  }
+}
+
+/* Send now + switch: mas malaking icon at balanseng laki ng button */
+.sw {
+  width: calc(92 * var(--u));
+  height: calc(92 * var(--u));
+}
+.sw svg {
+  width: calc(50 * var(--u));
+  height: calc(50 * var(--u));
+}
+.send {
+  height: calc(92 * var(--u));
+}
+.send svg {
+  width: calc(58 * var(--u));
+  height: calc(58 * var(--u));
+}
+
+/* SOUNDWAVE BADGE SA PFP: mas matingkad na background para kita ang mga bar */
+.dot,
+.pvdot {
+  background: linear-gradient(145deg, var(--a500), var(--sg1));
+  border: max(1px, calc(1.5 * var(--u))) solid rgba(255, 255, 255, 0.35);
+}
+
+/* SOUNDWAVE SA PHOTO VIEWER: glass panel, walang glow */
+.pvwave {
+  height: 88px;
+  margin-top: 20px;
+  border-radius: 24px;
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.07),
+    rgba(255, 255, 255, 0.02)
+  );
+  border: 1px solid rgba(var(--acl), 0.28);
+}
+
+/* ==========================================================
+   26. AYOS: SOUNDWAVE, BADGE CUTOUT SA VIEWER, TABLET ICONS, FOOTER, SHARE SHEET
+   Nasa dulo para ito ang mananaig.
+   ========================================================== */
+
+/* Viewer ng pfp: may sariling cutout (butas) ang malaking pfp, kapareho ng nasa maliit na pfp,
+   kaya walang kumikislap na stroke pagbukas / pagsara. Ang butas ay lumiliit/lumalaki kasabay ng badge (script.js). */
+@property --phole {
+  syntax: "<length>";
+  inherits: false;
+  initial-value: 0px;
+}
+.pvbox {
+  background: none;
+  box-shadow: none;
+}
+.pvm {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(
+    145deg,
+    var(--a200) 0%,
+    var(--a400) 45%,
+    var(--a600) 100%
+  );
+  --hx: 0px;
+  --hy: 0px;
+  -webkit-mask-image: radial-gradient(
+    circle at var(--hx) var(--hy),
+    transparent calc(var(--phole) - 1px),
+    #000 var(--phole)
+  );
+  mask-image: radial-gradient(
+    circle at var(--hx) var(--hy),
+    transparent calc(var(--phole) - 1px),
+    #000 var(--phole)
+  );
+}
+
+/* Soundwave sa viewer: walang box, manipis na mga bar */
+.pvwave {
+  height: 70px;
+  background: none;
+  border: 0;
+  border-radius: 0;
+}
+
+/* Badge sa pfp: mas malaki ng kaunti para may hangin sa paligid ng mga bar */
+.avatar {
+  --dotd: max(calc(52 * var(--u)), 15px);
+}
+
+/* PORTRAIT: may sapat na espasyo sa gilid sa kahit anong laki ng screen, at may espasyo sa ilalim ng footer */
+@media (orientation: portrait) {
+  .stage {
+    width: min(100%, calc(941 * var(--u) + 64px));
+    padding-left: max(
+      calc(28 * var(--u)),
+      16px,
+      env(safe-area-inset-left, 0px)
+    );
+    padding-right: max(
+      calc(28 * var(--u)),
+      16px,
+      env(safe-area-inset-right, 0px)
+    );
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  .stage > .sp.t1 {
+    height: calc(70 * var(--u));
+  }
+}
+@media (orientation: landscape) and (min-width: 560px) {
+  .stage {
+    padding-bottom: calc(64 * var(--u) + env(safe-area-inset-bottom, 0px));
+  }
+}
+
+/* TABLET / IPAD: mas malaki ang share at dark/light buttons */
+@media (min-width: 700px) {
+  .tbar {
+    --ts: clamp(48px, 6.4vw, 68px);
+    --ss: var(--ts);
+    top: calc(env(safe-area-inset-top, 0px) + clamp(18px, 2.6vw, 34px));
+    right: calc(env(safe-area-inset-right, 0px) + clamp(18px, 2.8vw, 36px));
+    gap: clamp(10px, 1.4vw, 16px);
+  }
+}
+@media (min-width: 700px) and (orientation: landscape) {
+  .tbar {
+    right: auto;
+    left: calc(env(safe-area-inset-left, 0px) + clamp(18px, 2.8vw, 36px));
+  }
+}
+
+/* SHARE SHEET: mas siksik para hindi matakpan ang buong screen */
+#shareov .sheet {
+  width: min(78%, 300px);
+  padding: 16px 16px 14px;
+  border-radius: 28px;
+}
+#shareov .shsheet h2 {
+  font-size: 19px;
+  margin-bottom: 2px;
+}
+#shareov .shsheet p {
+  font-size: 12.5px;
+  margin-bottom: 10px;
+}
+#shareov .eb {
+  margin-bottom: 8px;
+}
+#shareov .eb span {
+  font-size: 10px;
+}
+#shareov .qrw {
+  width: min(100%, 164px);
+  margin: 0 auto 12px;
+  border-radius: 14px;
+}
+#shareov .shbtn {
+  height: 40px;
+  font-size: 14px;
+  margin-bottom: 8px;
+}
+#shareov .cancel {
+  padding: 10px;
+  font-size: 14px;
+  margin-top: 2px;
+}
+
+/* ==========================================================
+   27. AYOS: LAKI NG TOP BAR SA WINDOW VIEW, TEXT NG PLATFORMS SA MAKITID NA PHONE
+   ========================================================== */
+/* Ang malalaking icon ng dark/light at share ay para lang sa touch (tablet / iPad). Sa window view ng desktop, bumabalik sa mas maliit. */
+@media (min-width: 700px) and (pointer: fine) {
+  .tbar {
+    --ts: clamp(36px, calc(74 * var(--u)), 44px);
+    --ss: var(--ts);
+    top: calc(
+      env(safe-area-inset-top, 0px) + clamp(14px, calc(34 * var(--u)), 30px)
+    );
+    right: calc(
+      env(safe-area-inset-right, 0px) + clamp(16px, calc(38 * var(--u)), 32px)
+    );
+    gap: clamp(8px, calc(16 * var(--u)), 12px);
+  }
+}
+@media (min-width: 700px) and (pointer: fine) and (orientation: landscape) {
+  .tbar {
+    right: auto;
+    left: calc(
+      env(safe-area-inset-left, 0px) + clamp(16px, calc(38 * var(--u)), 32px)
+    );
+  }
+}
+
+/* Text sa platform buttons: bahagyang mas maliit sa makitid na phone (375px) */
+@media (orientation: portrait) and (max-width: 480px) {
+  .tx b {
+    font-size: max(3.5px, calc(37 * var(--u)));
+  }
+  .tx span {
+    font-size: max(10.5px, calc(28 * var(--u)));
+  }
+}
+
+/* ==========================================================
+   28. PANTAY NA LAKI NG TEXT: Email/SMS pill, Switch to SMS, Send now = kapareho ng platforms
+   --pt1 = laki ng pangalan ng platform (Facebook, Messenger...), --pt2 = laki ng handle sa ilalim nito.
+   Isang lugar lang ang palitan: dito, at susunod ang lahat.
+   ========================================================== */
+:root {
+  --pt1: var(--t1);
+  --pt2: var(--t2);
+}
+@media (orientation: portrait) and (max-width: 480px) {
+  :root {
+    --pt1: max(3.5px, calc(37 * var(--u)));
+    --pt2: max(10.5px, calc(28 * var(--u)));
+  }
+}
+.tx b,
+.ct,
+.send {
+  font-size: var(--pt1);
+}
+.tx span,
+.pill,
+.small {
+  font-size: var(--pt2);
+}
+@media (orientation: portrait) {
+  .pill {
+    min-width: calc(var(--pt2) * 4.6);
+  }
+}
+
+/* ==========================================================
+   29. SEND A MESSAGE: header at padding ng card na kapareho ng platforms
+   Platforms: 30u padding sa gilid, 72u na icon, 30u pagitan ng icon at text. Ganoon din dito,
+   kaya pantay na pantay ang simula ng icon / text at ang dulo ng pill kumpara sa mga button sa taas.
+   ========================================================== */
+.card {
+  padding: calc(44 * var(--u)) calc(30 * var(--u)) calc(48 * var(--u));
+}
+.ch {
+  height: calc(72 * var(--u));
+}
+.ch svg {
+  width: calc(72 * var(--u));
+  height: calc(70 * var(--u));
+  margin-left: 0;
+}
+.ct {
+  margin-left: calc(30 * var(--u));
+}
+
+/* ==========================================================
+   29. SEND A MESSAGE: mas malaking title + icon, card na bahagyang mas mataas ang pwesto, mas mataas na input box
+   Ang taas ng .box (204) ay dapat tugma sa baseH() sa script.js.
+   ========================================================== */
+.ct {
+  font-size: calc(var(--pt1) * 1.12);
+}
+.ch {
+  height: calc(66 * var(--u));
+}
+.ch svg {
+  width: calc(66 * var(--u));
+  height: calc(64 * var(--u));
+}
+.box {
+  height: calc(204 * var(--u));
+}
+/* konting taas ng card: mas maliit ang pagitan sa pagitan ng header at ng card (portrait). Ang espasyo sa ilalim ng card ay hindi ginalaw. */
+@media (orientation: portrait) {
+  .hd + .sp.t0 {
+    height: calc(46 * var(--u));
+  }
+}
+
+/* ==========================================================
+   30. MUTE / UNMUTE
+   - Naka-on: puno ng accent gradient (kapareho ng Send now), may malambot na anino.
+   - Naka-mute: lumalabo papunta sa glass.
+   - Icon: ang mga alon ay "iginuguhit" palabas isa-isa; ang X ay iginuguhit pagmute.
+   - Bawat palit: isang makintab na guhit ang dumadaan sa button (kapareho ng sweep ng mga popup).
+   ========================================================== */
+.pvmute {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  color: var(--onacc);
+  border-color: var(--a300);
+  box-shadow: 0 6px 20px rgba(var(--acd), 0.38);
+}
+.pvmute::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--sg1), var(--sg2) 55%, var(--sg3));
+  opacity: 1;
+  transition: opacity 0.55s var(--ease);
+}
+.pvmute::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  border-radius: inherit;
+  pointer-events: none;
+  background: linear-gradient(
+    115deg,
+    transparent 36%,
+    rgba(255, 255, 255, 0.32) 50%,
+    transparent 64%
+  );
+  transform: translateX(-130%);
+}
+.pvmute.fx::after {
+  animation: pmsweep 0.9s var(--ease) both;
+}
+@keyframes pmsweep {
+  to {
+    transform: translateX(130%);
+  }
+}
+.pvmute.off {
+  color: #a9b4c8;
+  border-color: rgba(255, 255, 255, 0.22);
+  box-shadow: 0 6px 20px rgba(var(--acd), 0);
+}
+.pvmute.off::before {
+  opacity: 0;
+}
+
+/* icon: mga guhit na iginuguhit */
+.pvmute .pm-w1,
+.pvmute .pm-w2,
+.pvmute .pm-x1,
+.pvmute .pm-x2 {
+  stroke-dasharray: 1 2;
+  transition:
+    stroke-dashoffset 0.5s var(--ease),
+    opacity 0.25s ease;
+}
+.pvmute .pm-w1,
+.pvmute .pm-w2 {
+  stroke-dashoffset: 0;
+  opacity: 1;
+}
+.pvmute .pm-w2 {
+  transition-delay: 0.14s;
+}
+.pvmute .pm-x1,
+.pvmute .pm-x2 {
+  stroke-dashoffset: 1;
+  opacity: 0;
+}
+.pvmute.off .pm-w1,
+.pvmute.off .pm-w2 {
+  stroke-dashoffset: 1;
+  opacity: 0;
+  transition-delay: 0s;
+}
+.pvmute.off .pm-x1 {
+  stroke-dashoffset: 0;
+  opacity: 1;
+  transition-delay: 0.12s;
+}
+.pvmute.off .pm-x2 {
+  stroke-dashoffset: 0;
+  opacity: 1;
+  transition-delay: 0.26s;
+}
+
+/* pantay ang lapad ng label para hindi nagbabago ang laki ng button kapag Mute <-> Unmute */
+#pvmutet {
+  display: inline-block;
+  min-width: 3.7em;
+  text-align: left;
+}
+.pv.landed .pvcap > .pvmute {
+  transition:
+    opacity 0.55s var(--ease) calc(var(--i, 0) * 75ms + 80ms),
+    transform 0.85s var(--ease) calc(var(--i, 0) * 75ms + 80ms),
+    background 0.35s ease 0s,
+    border-color 0.45s ease 0s,
+    color 0.45s ease 0s,
+    box-shadow 0.5s ease 0s;
+}
